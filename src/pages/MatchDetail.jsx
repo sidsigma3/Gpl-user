@@ -1,0 +1,246 @@
+import { useParams, Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { getMatchDetails } from '../api/client'
+import { ArrowLeft, Trophy, Info, Users, BarChart3, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState } from 'react'
+
+export default function MatchDetail() {
+  const { id } = useParams()
+  const [activeTab, setActiveTab] = useState('summary')
+  const [expandedInning, setExpandedInning] = useState(0)
+
+  const { data: detailsRes, isLoading } = useQuery({
+    queryKey: ['match-details', id],
+    queryFn: () => getMatchDetails(id)
+  })
+
+  const details = detailsRes?.data
+  const summary = details?.summary?.summaryData?.data
+  const scorecard = details?.scorecard?.scorecard || []
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!details || !summary) {
+    return (
+      <div className="text-center p-12 space-y-4">
+        <div className="text-text-muted italic">Could not load match details.</div>
+        <Link to="/matches" className="text-accent font-black uppercase text-sm">Return to Schedule</Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Link to="/matches" className="p-2 hover:bg-white/5 rounded-full transition-colors">
+          <ArrowLeft size={20} />
+        </Link>
+        <h1 className="text-xl font-black italic uppercase tracking-wider">Match Report</h1>
+      </div>
+
+      {/* Main Scorecard Banner */}
+      <div className="card relative overflow-hidden border-primary/20 bg-gradient-to-br from-surface to-background shadow-2xl">
+        <div className="p-6 md:p-10 space-y-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            {/* Team A */}
+            <div className="flex flex-col items-center gap-4 text-center w-full md:w-1/3">
+              <div className="w-24 h-24 rounded-3xl bg-gray-900 border-4 border-surface shadow-2xl overflow-hidden flex items-center justify-center p-2">
+                {summary.team_a.logo ? <img src={summary.team_a.logo} alt="" className="w-full h-full object-contain" /> : <Trophy size={32} className="text-text-muted" />}
+              </div>
+              <div className="font-black text-xl">{summary.team_a.name}</div>
+              <div className="text-4xl font-black text-primary">{summary.team_a.summary || '0/0'}</div>
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{summary.team_a.innings?.[0]?.summary?.over}</div>
+            </div>
+
+            {/* VS */}
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 bg-accent text-background rounded-full flex items-center justify-center font-black italic shadow-lg -rotate-12 z-10">VS</div>
+              <div className="h-px w-32 bg-gradient-to-r from-transparent via-gray-800 to-transparent my-4" />
+              <div className="text-[10px] font-black text-accent uppercase tracking-[0.2em]">{summary.tournament_round_name}</div>
+            </div>
+
+            {/* Team B */}
+            <div className="flex flex-col items-center gap-4 text-center w-full md:w-1/3">
+              <div className="w-24 h-24 rounded-3xl bg-gray-900 border-4 border-surface shadow-2xl overflow-hidden flex items-center justify-center p-2">
+                {summary.team_b.logo ? <img src={summary.team_b.logo} alt="" className="w-full h-full object-contain" /> : <Trophy size={32} className="text-text-muted" />}
+              </div>
+              <div className="font-black text-xl">{summary.team_b.name}</div>
+              <div className="text-4xl font-black text-primary">{summary.team_b.summary || '0/0'}</div>
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{summary.team_b.innings?.[0]?.summary?.over}</div>
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-gray-800 text-center">
+            <div className="text-accent font-black italic uppercase tracking-widest text-lg">
+              {summary.winning_team} won by {summary.win_by}
+            </div>
+            <div className="text-[10px] font-bold text-text-muted mt-2 uppercase tracking-widest flex items-center justify-center gap-2">
+              <Info size={12} /> {summary.toss_details}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-gray-800">
+        {[
+          { id: 'summary', label: 'Summary', icon: BarChart3 },
+          { id: 'scorecard', label: 'Scorecard', icon: Trophy },
+          { id: 'squads', label: 'Squads', icon: Users },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all
+              ${activeTab === tab.id ? 'bg-primary text-white shadow-lg' : 'text-text-muted hover:bg-white/5'}`}
+          >
+            <tab.icon size={16} /> {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="min-h-[400px]">
+        {activeTab === 'summary' && (
+          <div className="space-y-6">
+             <div className="card p-6 space-y-4">
+                <h3 className="font-black italic uppercase text-primary border-b border-gray-800 pb-2">Match Insights</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div className="p-4 bg-white/5 rounded-xl border border-white/5">
+                      <div className="text-[10px] font-bold text-text-muted uppercase mb-1">Venue</div>
+                      <div className="font-bold">{summary.ground_name}</div>
+                      <div className="text-xs text-text-muted">{summary.city_name}</div>
+                   </div>
+                   <div className="p-4 bg-white/5 rounded-xl border border-white/5">
+                      <div className="text-[10px] font-bold text-text-muted uppercase mb-1">Match Type</div>
+                      <div className="font-bold">{summary.match_type} ({summary.overs} Overs)</div>
+                      <div className="text-xs text-text-muted">Ball Type: {summary.ball_type}</div>
+                   </div>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {activeTab === 'scorecard' && (
+          <div className="space-y-4">
+            {scorecard.map((inning, idx) => (
+              <div key={idx} className="card overflow-hidden border-white/5">
+                <button 
+                  onClick={() => setExpandedInning(expandedInning === idx ? -1 : idx)}
+                  className="w-full p-4 flex items-center justify-between bg-white/5 hover:bg-white/10 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded bg-primary flex items-center justify-center font-black text-xs">{idx + 1}</div>
+                    <div className="text-left">
+                      <div className="font-black italic uppercase text-sm">{inning.teamName}</div>
+                      <div className="text-[10px] font-bold text-text-muted uppercase">Innings {idx + 1}</div>
+                    </div>
+                  </div>
+                  {expandedInning === idx ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </button>
+
+                {expandedInning === idx && (
+                  <div className="p-4 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                    {/* Batting Table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="border-b border-gray-800 text-[10px] font-black uppercase text-text-muted tracking-widest">
+                            <th className="py-3 px-2">Batter</th>
+                            <th className="py-3 px-2 text-right">R</th>
+                            <th className="py-3 px-2 text-right">B</th>
+                            <th className="py-3 px-2 text-right">4s</th>
+                            <th className="py-3 px-2 text-right">6s</th>
+                            <th className="py-3 px-2 text-right">SR</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-800/50">
+                          {inning.batting.map((player, pIdx) => (
+                            <tr key={pIdx} className="text-sm">
+                              <td className="py-3 px-2">
+                                <div className="font-bold">{player.name}</div>
+                                <div className="text-[10px] text-text-muted">{player.out_desc}</div>
+                              </td>
+                              <td className="py-3 px-2 text-right font-black">{player.runs}</td>
+                              <td className="py-3 px-2 text-right text-text-muted">{player.balls}</td>
+                              <td className="py-3 px-2 text-right text-text-muted">{player.fours}</td>
+                              <td className="py-3 px-2 text-right text-text-muted">{player.sixes}</td>
+                              <td className="py-3 px-2 text-right text-accent font-bold">{player.strike_rate}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Extras & Total */}
+                    <div className="flex items-center justify-between p-4 bg-primary/10 rounded-xl border border-primary/20">
+                       <div className="text-xs font-black uppercase text-primary">Extras: {inning.extra}</div>
+                       <div className="text-lg font-black italic">Total: {inning.batting.reduce((acc, p) => acc + parseInt(p.runs), 0) + parseInt(inning.extra)}</div>
+                    </div>
+
+                    {/* Bowling Table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="border-b border-gray-800 text-[10px] font-black uppercase text-text-muted tracking-widest">
+                            <th className="py-3 px-2">Bowler</th>
+                            <th className="py-3 px-2 text-right">O</th>
+                            <th className="py-3 px-2 text-right">M</th>
+                            <th className="py-3 px-2 text-right">R</th>
+                            <th className="py-3 px-2 text-right">W</th>
+                            <th className="py-3 px-2 text-right">ER</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-800/50">
+                          {inning.bowling.map((player, pIdx) => (
+                            <tr key={pIdx} className="text-sm">
+                              <td className="py-3 px-2 font-bold">{player.name}</td>
+                              <td className="py-3 px-2 text-right font-black">{player.overs}</td>
+                              <td className="py-3 px-2 text-right text-text-muted">{player.maidens}</td>
+                              <td className="py-3 px-2 text-right text-text-muted">{player.runs}</td>
+                              <td className="py-3 px-2 text-right font-black text-primary">{player.wickets}</td>
+                              <td className="py-3 px-2 text-right text-accent font-bold">{player.economy_rate}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'squads' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {scorecard.map((inning, idx) => (
+              <div key={idx} className="card p-6 border-white/5 space-y-4">
+                <div className="flex items-center gap-3 border-b border-gray-800 pb-3">
+                  <div className="w-10 h-10 rounded-lg bg-gray-900 border border-white/10 flex items-center justify-center">
+                    <Users className="text-primary" size={20} />
+                  </div>
+                  <div className="font-black italic uppercase">{inning.teamName}</div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[...new Set([...inning.batting, ...inning.bowling].map(p => p.name))].map((name, pIdx) => (
+                    <div key={pIdx} className="text-xs font-bold p-2 bg-white/5 rounded border border-white/5">
+                      {name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
