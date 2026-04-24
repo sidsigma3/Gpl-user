@@ -1,22 +1,57 @@
-import { useParams, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { getMatchDetails } from '../api/client'
-import { ArrowLeft, Trophy, Info, Users, BarChart3, ChevronDown, ChevronUp } from 'lucide-react'
-import { useState } from 'react'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getMatchDetails, submitVote, getVoteCounts } from '../api/client'
+import { ArrowLeft, Trophy, Info, Users, BarChart3, ChevronDown, ChevronUp, Heart, CheckCircle2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 export default function MatchDetail() {
   const { id } = useParams()
-  const [activeTab, setActiveTab] = useState('summary')
+  const [searchParams] = useSearchParams()
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'summary')
   const [expandedInning, setExpandedInning] = useState(0)
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab) setActiveTab(tab)
+  }, [searchParams])
 
   const { data: detailsRes, isLoading } = useQuery({
     queryKey: ['match-details', id],
     queryFn: () => getMatchDetails(id)
   })
 
+  const { data: voteRes } = useQuery({
+    queryKey: ['match-votes', id],
+    queryFn: () => getVoteCounts(id)
+  })
+
+  const voteMutation = useMutation({
+    mutationFn: ({ playerId, playerName }) => submitVote(id, playerId, playerName),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['match-votes', id])
+      alert('Your vote has been recorded!')
+    }
+  })
+
   const details = detailsRes?.data
   const summary = details?.summary?.summaryData?.data
   const scorecard = details?.scorecard?.scorecard || []
+  const votes = voteRes?.data || []
+
+  // Extract all players from scorecard for voting
+  const allPlayers = scorecard.reduce((acc, inning) => {
+    const players = [...inning.batting, ...inning.bowling].map(p => ({
+      id: p.player_id,
+      name: p.name,
+      team: inning.teamName
+    }))
+    // Filter out duplicates
+    players.forEach(p => {
+      if (!acc.find(prev => prev.id === p.id)) acc.push(p)
+    })
+    return acc
+  }, [])
 
   if (isLoading) {
     return (
@@ -33,6 +68,13 @@ export default function MatchDetail() {
         <Link to="/matches" className="text-accent font-black uppercase text-sm">Return to Schedule</Link>
       </div>
     )
+  }
+
+  // Helper to get team logo by ID
+  const getTeamLogo = (teamId) => {
+    if (String(summary.team_a_id) === String(teamId)) return summary.team_a_logo
+    if (String(summary.team_b_id) === String(teamId)) return summary.team_b_logo
+    return null
   }
 
   return (
@@ -89,16 +131,17 @@ export default function MatchDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-gray-800">
+      <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-gray-800 overflow-x-auto whitespace-nowrap">
         {[
           { id: 'summary', label: 'Summary', icon: BarChart3 },
           { id: 'scorecard', label: 'Scorecard', icon: Trophy },
           { id: 'squads', label: 'Squads', icon: Users },
+          { id: 'vote', label: 'Fan Vote', icon: Heart },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-lg text-xs font-black uppercase tracking-widest transition-all
               ${activeTab === tab.id ? 'bg-primary text-white shadow-lg' : 'text-text-muted hover:bg-white/5'}`}
           >
             <tab.icon size={16} /> {tab.label}
@@ -125,6 +168,24 @@ export default function MatchDetail() {
                    </div>
                 </div>
              </div>
+
+             {/* MOM Standings Snippet */}
+             {votes.length > 0 && (
+               <div className="card p-6 space-y-4 border-accent/20 bg-accent/5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-black italic uppercase text-accent">Fan's Man of the Match</h3>
+                    <Heart size={20} className="text-accent animate-pulse" />
+                  </div>
+                  <div className="space-y-2">
+                    {votes.slice(0, 1).map((v, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-background/50 rounded-lg border border-accent/10">
+                        <div className="font-black uppercase">{v.name}</div>
+                        <div className="text-accent font-black">{v.count} Votes</div>
+                      </div>
+                    ))}
+                  </div>
+               </div>
+             )}
           </div>
         )}
 
@@ -136,8 +197,14 @@ export default function MatchDetail() {
                   onClick={() => setExpandedInning(expandedInning === idx ? -1 : idx)}
                   className="w-full p-4 flex items-center justify-between bg-white/5 hover:bg-white/10 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-primary flex items-center justify-center font-black text-xs">{idx + 1}</div>
+                  <div className="flex items-center gap-3 text-left">
+                    <div className="w-10 h-10 rounded-lg bg-gray-900 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                       {getTeamLogo(inning.team_id) ? (
+                         <img src={`https://media.cricheroes.in/team_logo/${getTeamLogo(inning.team_id)}`} alt="" className="w-full h-full object-cover" />
+                       ) : (
+                         <div className="w-8 h-8 rounded bg-primary flex items-center justify-center font-black text-xs">{idx + 1}</div>
+                       )}
+                    </div>
                     <div className="text-left">
                       <div className="font-black italic uppercase text-sm">{inning.teamName}</div>
                       <div className="text-[10px] font-bold text-text-muted uppercase">Innings {idx + 1}</div>
@@ -166,13 +233,13 @@ export default function MatchDetail() {
                             <tr key={pIdx} className="text-sm">
                               <td className="py-3 px-2">
                                 <div className="font-bold">{player.name}</div>
-                                <div className="text-[10px] text-text-muted">{player.out_desc}</div>
+                                <div className="text-[10px] text-text-muted">{player.how_to_out}</div>
                               </td>
                               <td className="py-3 px-2 text-right font-black">{player.runs}</td>
                               <td className="py-3 px-2 text-right text-text-muted">{player.balls}</td>
-                              <td className="py-3 px-2 text-right text-text-muted">{player.fours}</td>
-                              <td className="py-3 px-2 text-right text-text-muted">{player.sixes}</td>
-                              <td className="py-3 px-2 text-right text-accent font-bold">{player.strike_rate}</td>
+                              <td className="py-3 px-2 text-right text-text-muted">{player['4s'] || 0}</td>
+                              <td className="py-3 px-2 text-right text-text-muted">{player['6s'] || 0}</td>
+                              <td className="py-3 px-2 text-right text-accent font-bold">{player.SR}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -181,8 +248,11 @@ export default function MatchDetail() {
 
                     {/* Extras & Total */}
                     <div className="flex items-center justify-between p-4 bg-primary/10 rounded-xl border border-primary/20">
-                       <div className="text-xs font-black uppercase text-primary">Extras: {inning.extra}</div>
-                       <div className="text-lg font-black italic">Total: {inning.batting.reduce((acc, p) => acc + parseInt(p.runs), 0) + parseInt(inning.extra)}</div>
+                       <div>
+                          <div className="text-xs font-black uppercase text-primary">Extras: {inning.extras?.total || 0}</div>
+                          <div className="text-[10px] text-text-muted uppercase font-bold">{inning.extras?.summary}</div>
+                       </div>
+                       <div className="text-lg font-black italic">Total: {inning.batting.reduce((acc, p) => acc + (parseInt(p.runs) || 0), 0) + (parseInt(inning.extras?.total) || 0)}</div>
                     </div>
 
                     {/* Bowling Table */}
@@ -224,8 +294,12 @@ export default function MatchDetail() {
             {scorecard.map((inning, idx) => (
               <div key={idx} className="card p-6 border-white/5 space-y-4">
                 <div className="flex items-center gap-3 border-b border-gray-800 pb-3">
-                  <div className="w-10 h-10 rounded-lg bg-gray-900 border border-white/10 flex items-center justify-center">
-                    <Users className="text-primary" size={20} />
+                  <div className="w-10 h-10 rounded-lg bg-gray-900 border border-white/10 flex items-center justify-center overflow-hidden">
+                    {getTeamLogo(inning.team_id) ? (
+                      <img src={`https://media.cricheroes.in/team_logo/${getTeamLogo(inning.team_id)}`} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Users className="text-primary" size={20} />
+                    )}
                   </div>
                   <div className="font-black italic uppercase">{inning.teamName}</div>
                 </div>
@@ -238,6 +312,52 @@ export default function MatchDetail() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {activeTab === 'vote' && (
+          <div className="space-y-8 animate-in zoom-in duration-500">
+             <div className="text-center space-y-2">
+                <h2 className="text-2xl font-black italic uppercase tracking-widest text-accent">Fan Favorite Vote</h2>
+                <p className="text-xs text-text-muted font-bold uppercase tracking-widest">Who was the Man of the Match?</p>
+             </div>
+
+             {/* Results Section */}
+             {votes.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   {votes.map((v, i) => (
+                      <div key={i} className="card p-4 flex items-center justify-between border-accent/20 bg-accent/5">
+                         <div className="font-black uppercase text-sm">{v.name}</div>
+                         <div className="px-3 py-1 bg-accent text-background text-[10px] font-black rounded-full shadow-lg">{v.count} Votes</div>
+                      </div>
+                   ))}
+                </div>
+             )}
+
+             {/* Voting Grid */}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[summary.team_a, summary.team_b].map((team, tIdx) => (
+                  <div key={tIdx} className="space-y-4">
+                    <div className="flex items-center gap-2 border-b border-gray-800 pb-2">
+                       <div className="w-6 h-6 rounded bg-primary/20 flex items-center justify-center font-black text-[10px]">{tIdx === 0 ? 'A' : 'B'}</div>
+                       <div className="font-black italic uppercase text-xs text-text-muted">{team.name}</div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                       {allPlayers.filter(p => p.team === team.name).map((p, pIdx) => (
+                          <button
+                            key={pIdx}
+                            onClick={() => voteMutation.mutate({ playerId: p.id, playerName: p.name })}
+                            disabled={voteMutation.isPending}
+                            className="flex items-center justify-between p-4 card bg-surface hover:border-accent transition-all group"
+                          >
+                             <div className="font-black uppercase text-sm group-hover:text-accent transition-colors">{p.name}</div>
+                             <Heart size={18} className="text-text-muted group-hover:text-accent transition-all" />
+                          </button>
+                       ))}
+                    </div>
+                  </div>
+                ))}
+             </div>
           </div>
         )}
       </div>

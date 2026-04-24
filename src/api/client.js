@@ -26,4 +26,24 @@ export const getMatchDetails = async (id) => {
   return response.data;
 };
 
+const getVoterId = () => {
+  let id = localStorage.getItem('gpl_voter_id');
+  if (!id) {
+    id = 'voter_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+    localStorage.setItem('gpl_voter_id', id);
+  }
+  return id;
+};
+
+export const submitVote = async (matchId, playerId, playerName) => {
+  const voterId = getVoterId();
+  const response = await client.post(`/matches/${matchId}/vote`, { playerId, playerName, voterId });
+  return response.data;
+};
+
+export const getVoteCounts = async (matchId) => {
+  const response = await client.get(`/matches/${matchId}/votes`);
+  return response.data;
+};
+
 export default client;

@@ -90,13 +90,17 @@ export default function Home() {
               <div className="p-8">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-8">
                   {/* Team A */}
-                  <div className="flex flex-col items-center gap-3 text-center w-full md:w-1/3">
-                    <div className="w-20 h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full border-4 border-surface shadow-2xl flex items-center justify-center overflow-hidden">
-                       <span className="text-2xl font-black text-white">{latestMatch.team_a?.substring(0,3).toUpperCase()}</span>
+                  <Link to={`/teams/${latestMatch.team_a_id}`} className="flex flex-col items-center gap-3 text-center w-full md:w-1/3 group/team">
+                    <div className="w-20 h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full border-4 border-surface shadow-2xl flex items-center justify-center overflow-hidden group-hover/team:border-primary transition-all">
+                       {latestMatch.team_a_logo ? (
+                         <img src={`https://media.cricheroes.in/team_logo/${latestMatch.team_a_logo}`} alt="" className="w-full h-full object-cover" />
+                       ) : (
+                         <span className="text-2xl font-black text-white">{latestMatch.team_a?.substring(0,3).toUpperCase()}</span>
+                       )}
                     </div>
-                    <div className="font-black text-lg">{latestMatch.team_a}</div>
-                    <div className="text-3xl font-black text-primary">{latestMatch.team_a_summary || latestMatch.team_a_innings?.[0]?.summary?.score || '0/0'}</div>
-                  </div>
+                    <div className="font-black text-lg group-hover/team:text-primary transition-colors">{latestMatch.team_a}</div>
+                    <div className="text-3xl font-black text-primary">{latestMatch.team_a_summary || '0/0'}</div>
+                  </Link>
 
                   {/* VS Divider */}
                   <div className="flex flex-col items-center">
@@ -107,13 +111,17 @@ export default function Home() {
                   </div>
 
                   {/* Team B */}
-                  <div className="flex flex-col items-center gap-3 text-center w-full md:w-1/3">
-                    <div className="w-20 h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full border-4 border-surface shadow-2xl flex items-center justify-center overflow-hidden">
-                       <span className="text-2xl font-black text-white">{latestMatch.team_b?.substring(0,3).toUpperCase()}</span>
+                  <Link to={`/teams/${latestMatch.team_b_id}`} className="flex flex-col items-center gap-3 text-center w-full md:w-1/3 group/team">
+                    <div className="w-20 h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full border-4 border-surface shadow-2xl flex items-center justify-center overflow-hidden group-hover/team:border-primary transition-all">
+                       {latestMatch.team_b_logo ? (
+                         <img src={`https://media.cricheroes.in/team_logo/${latestMatch.team_b_logo}`} alt="" className="w-full h-full object-cover" />
+                       ) : (
+                         <span className="text-2xl font-black text-white">{latestMatch.team_b?.substring(0,3).toUpperCase()}</span>
+                       )}
                     </div>
-                    <div className="font-black text-lg">{latestMatch.team_b}</div>
-                    <div className="text-3xl font-black text-primary">{latestMatch.team_b_summary || latestMatch.team_b_innings?.[0]?.summary?.score || '0/0'}</div>
-                  </div>
+                    <div className="font-black text-lg group-hover/team:text-primary transition-colors">{latestMatch.team_b}</div>
+                    <div className="text-3xl font-black text-primary">{latestMatch.team_b_summary || '0/0'}</div>
+                  </Link>
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-gray-800 text-center">
@@ -153,7 +161,12 @@ export default function Home() {
                         </div>
                         <div>
                           <div className="font-bold text-sm text-text-primary group-hover:text-accent transition-colors">{player.player_name}</div>
-                          <div className="text-[10px] text-text-muted uppercase font-bold">{player.team_name}</div>
+                          <Link 
+                            to={`/teams/${player.team_id}`}
+                            className="text-[10px] text-accent uppercase font-black hover:underline transition-all block"
+                          >
+                            {player.team_name}
+                          </Link>
                         </div>
                       </div>
                       <div className="text-right">

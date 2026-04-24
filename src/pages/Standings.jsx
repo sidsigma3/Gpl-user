@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { getLeaderboard } from '../api/client'
 import { Trophy, Star, TrendingUp, Search, Zap } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 export default function Standings() {
   const { data: leadRes, isLoading } = useQuery({
@@ -29,9 +30,10 @@ export default function Standings() {
                 <tr className="bg-primary/10 border-b border-gray-800">
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted">Rank</th>
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted">Team</th>
-                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">Sixes</th>
-                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">Fours</th>
-                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-right">Activity</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">Runs</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">Wickets</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">6s / 4s</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/50">
@@ -51,18 +53,28 @@ export default function Standings() {
                           {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-cover" /> : <Trophy size={20} className="text-text-muted" />}
                         </div>
                         <div>
-                          <div className="font-black text-text-primary group-hover:text-accent transition-colors">{team.team_name}</div>
+                          <Link to={`/teams/${team.team_id}`} className="font-black text-text-primary hover:text-accent transition-colors block">
+                            {team.team_name}
+                          </Link>
                           <div className="text-[10px] font-bold text-accent uppercase">Season Contender</div>
                         </div>
                       </div>
                     </td>
                     <td className="p-6 text-center">
-                      <div className="font-black text-text-primary text-xl">{team.total_six || '0'}</div>
-                      <div className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Total Sixes</div>
+                      <div className="font-black text-text-primary text-xl">{team.total_runs || '0'}</div>
+                      <div className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Total Runs</div>
                     </td>
                     <td className="p-6 text-center">
-                      <div className="font-black text-text-primary text-xl">{team.total_four || '0'}</div>
-                      <div className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Total Fours</div>
+                      <div className="font-black text-text-primary text-xl">{team.total_wicket || '0'}</div>
+                      <div className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Total Wickets</div>
+                    </td>
+                    <td className="p-6 text-center">
+                      <div className="font-black text-text-primary text-lg">
+                        <span className="text-accent">{team.total_six || '0'}</span>
+                        <span className="text-text-muted mx-1">/</span>
+                        <span className="text-primary">{team.total_four || '0'}</span>
+                      </div>
+                      <div className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Boundaries</div>
                     </td>
                     <td className="p-6 text-right">
                        <div className="inline-flex items-center gap-1 text-primary">

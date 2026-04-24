@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { getMatches } from '../api/client'
 import { Clock, Trophy, MapPin, Share2 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 export default function Matches() {
+  const navigate = useNavigate()
   const { data: matchRes, isLoading } = useQuery({
     queryKey: ['matches'],
     queryFn: getMatches
@@ -29,7 +30,11 @@ export default function Matches() {
           {matches.map((item) => {
             const m = item.data
             return (
-              <Link key={item.id} to={`/matches/${item.id}`} className="card group hover:border-primary/40 transition-all bg-gradient-to-r from-surface to-background overflow-hidden block">
+              <div 
+                key={item.id} 
+                onClick={() => navigate(`/matches/${item.id}`)}
+                className="card group hover:border-primary/40 transition-all bg-gradient-to-r from-surface to-background overflow-hidden block cursor-pointer"
+              >
                 <div className="flex flex-col md:flex-row">
                   {/* Status Side */}
                   <div className="md:w-48 bg-primary/5 p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-gray-800">
@@ -54,18 +59,36 @@ export default function Matches() {
                     </div>
 
                     <div className="flex items-center justify-between gap-4">
-                      <div className="flex-1 text-center md:text-left">
-                        <div className="text-lg font-black group-hover:text-primary transition-colors">{m.team_a}</div>
-                        <div className="text-2xl font-black text-text-muted mt-1">{m.team_a_summary || '-'}</div>
+                      <div className="flex-1 flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-gray-900 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
+                           {m.team_a_logo ? <img src={`https://media.cricheroes.in/team_logo/${m.team_a_logo}`} alt="" className="w-full h-full object-cover" /> : <Trophy size={16} className="text-text-muted" />}
+                        </div>
+                        <div className="text-center md:text-left">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); navigate(`/teams/${m.team_a_id}`) }}
+                            className="text-lg font-black hover:text-primary transition-colors text-left"
+                          >
+                            {m.team_a}
+                          </button>
+                          <div className="text-2xl font-black text-text-muted mt-1">{m.team_a_summary || '-'}</div>
+                        </div>
                       </div>
 
-                      <div className="w-px h-12 bg-gray-800 hidden md:block" />
-                      <div className="text-xs font-black italic text-accent md:mx-4">VS</div>
-                      <div className="w-px h-12 bg-gray-800 hidden md:block" />
+                      <div className="text-xs font-black italic text-accent mx-4">VS</div>
 
-                      <div className="flex-1 text-center md:text-right">
-                        <div className="text-lg font-black group-hover:text-primary transition-colors">{m.team_b}</div>
-                        <div className="text-2xl font-black text-text-muted mt-1">{m.team_b_summary || '-'}</div>
+                      <div className="flex-1 flex items-center justify-end gap-3 text-right">
+                        <div>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); navigate(`/teams/${m.team_b_id}`) }}
+                            className="text-lg font-black hover:text-primary transition-colors text-right"
+                          >
+                            {m.team_b}
+                          </button>
+                          <div className="text-2xl font-black text-text-muted mt-1">{m.team_b_summary || '-'}</div>
+                        </div>
+                        <div className="w-12 h-12 rounded-lg bg-gray-900 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
+                           {m.team_b_logo ? <img src={`https://media.cricheroes.in/team_logo/${m.team_b_logo}`} alt="" className="w-full h-full object-cover" /> : <Trophy size={16} className="text-text-muted" />}
+                        </div>
                       </div>
                     </div>
 
@@ -80,7 +103,7 @@ export default function Matches() {
                     </div>
                   </div>
                 </div>
-              </Link>
+              </div>
             )
           })}
         </div>
