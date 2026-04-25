@@ -1,10 +1,16 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getTeams, getMatches } from '../api/client'
-import { ArrowLeft, Trophy, Users, Calendar, Target, TrendingUp, Info } from 'lucide-react'
+import { ArrowLeft, Trophy, Users, Calendar, Target, TrendingUp, Info, ArrowRight } from 'lucide-react'
+import { useEffect } from 'react'
 
 export default function TeamDetail() {
+  const navigate = useNavigate()
   const { id: teamId } = useParams()
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [teamId])
 
   const { data: teamsRes, isLoading: teamsLoading } = useQuery({
     queryKey: ['teams'],
@@ -33,15 +39,17 @@ export default function TeamDetail() {
     )
   }
 
-  if (!team) {
+  if (!team || !team.data) {
     return (
       <div className="card m-12 p-12 text-center space-y-6 border-red-500/20 bg-red-500/5">
         <Info className="mx-auto text-red-500" size={48} />
         <div className="space-y-2">
-           <h2 className="text-2xl font-black uppercase italic text-red-500">Team Not Found</h2>
-           <p className="text-text-muted text-sm max-w-xs mx-auto">We couldn't find the data for this team (ID: {teamId}).</p>
+           <h2 className="text-2xl font-black uppercase italic text-red-500">Team Profile Missing</h2>
+           <p className="text-text-muted text-sm max-w-xs mx-auto">This team's data hasn't been synced to the database yet. Please run a sync to see their full profile.</p>
         </div>
-        <Link to="/" className="inline-block px-8 py-3 bg-primary text-white font-black uppercase text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">Return Home</Link>
+        <div className="flex gap-4 justify-center">
+          <Link to="/" className="inline-block px-8 py-3 bg-primary text-white font-black uppercase text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">Return Home</Link>
+        </div>
       </div>
     )
   }
@@ -132,25 +140,42 @@ export default function TeamDetail() {
             
             <div className="space-y-4">
                {teamMatches.length > 0 ? [...teamMatches].reverse().map((match, idx) => {
-                 const isWin = String(match.data.winning_team_id) === String(teamId)
-                 const opponent = String(match.data.team_a_id) === String(teamId) ? match.data.team_b : match.data.team_a
+                 const m = match.data
+                 const isWin = String(m.winning_team_id) === String(teamId)
+                 const isTeamA = String(m.team_a_id) === String(teamId)
+                 const opponentName = isTeamA ? m.team_b : m.team_a
+                 const opponentId = isTeamA ? m.team_b_id : m.team_a_id
                  
                  return (
-                  <Link 
-                    to={`/matches/${match.id}/details`}
+                  <div 
                     key={idx} 
-                    className="flex items-center justify-between p-6 card bg-surface hover:border-primary transition-all group relative overflow-hidden"
+                    onClick={() => navigate(`/matches/${match.id}/details`)}
+                    className="flex items-center justify-between p-6 card bg-surface hover:border-primary/40 transition-all group relative overflow-hidden cursor-pointer"
                   >
                     {isWin && <div className="absolute top-0 right-0 p-1 bg-primary text-white text-[8px] font-black uppercase tracking-tighter px-2 rounded-bl-lg shadow-lg">Winner</div>}
                     <div className="space-y-1">
-                       <div className="text-[10px] font-black text-text-muted uppercase tracking-widest">{match.data.match_date}</div>
-                       <div className="font-black uppercase text-lg group-hover:text-primary transition-colors">vs {opponent}</div>
-                       <div className="text-xs font-bold text-text-muted italic">{match.data.result_desc}</div>
+                       <div className="text-[10px] font-black text-text-muted uppercase tracking-widest">{m.match_date || m.created_date}</div>
+                       
+                       {/* Opponent Link */}
+                       <div 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           if (opponentId) navigate(`/teams/${opponentId}`);
+                         }}
+                         className="block text-left group/opp cursor-pointer"
+                       >
+                         <div className="font-black uppercase text-lg group-hover/opp:text-primary transition-colors flex items-center gap-2">
+                           vs {opponentName}
+                           <ArrowRight size={14} className="opacity-0 group-hover/opp:opacity-100 -translate-x-2 group-hover/opp:translate-x-0 transition-all" />
+                         </div>
+                       </div>
+
+                       <div className="text-xs font-bold text-text-muted italic">{m.result_desc || m.match_result}</div>
                     </div>
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black italic text-xs uppercase shadow-2xl border-4 ${isWin ? 'bg-primary text-white border-primary/20' : 'bg-gray-800 text-text-muted border-gray-700'}`}>
                        {isWin ? 'W' : 'L'}
                     </div>
-                  </Link>
+                  </div>
                  )
                }) : (
                  <div className="card p-20 text-center space-y-4 bg-surface/30 border-dashed">

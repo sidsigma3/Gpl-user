@@ -1,15 +1,38 @@
 import { useQuery } from '@tanstack/react-query'
-import { getLeaderboard } from '../api/client'
+import { getLeaderboard, getMatches } from '../api/client'
 import { Trophy, Star, TrendingUp, Search, Zap } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 export default function Standings() {
-  const { data: leadRes, isLoading } = useQuery({
+  const navigate = useNavigate()
+  const { data: leadRes, isLoading: leadLoading } = useQuery({
     queryKey: ['leaderboard'],
     queryFn: getLeaderboard
   })
 
+  const { data: matchesRes, isLoading: matchesLoading } = useQuery({
+    queryKey: ['matches'],
+    queryFn: getMatches
+  })
+
   const leaderboard = leadRes?.data || []
+  const matches = matchesRes?.data || []
+
+  const getTeamStats = (teamId) => {
+    let runs = 0
+    let wickets = 0
+    matches.forEach(m => {
+      const match = m.data
+      if (String(match.team_a_id) === String(teamId)) {
+        if (match.team_a_innings?.[0]) runs += match.team_a_innings[0].total_run || 0
+        if (match.team_b_innings?.[0]) wickets += match.team_b_innings[0].total_wicket || 0
+      } else if (String(match.team_b_id) === String(teamId)) {
+        if (match.team_b_innings?.[0]) runs += match.team_b_innings[0].total_run || 0
+        if (match.team_a_innings?.[0]) wickets += match.team_a_innings[0].total_wicket || 0
+      }
+    })
+    return { runs, wickets }
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -20,7 +43,7 @@ export default function Standings() {
         </div>
       </div>
 
-      {isLoading ? (
+      {leadLoading || matchesLoading ? (
         <div className="card animate-pulse h-96" />
       ) : (
         <div className="card overflow-hidden border-white/5 shadow-2xl">
@@ -30,60 +53,78 @@ export default function Standings() {
                 <tr className="bg-primary/10 border-b border-gray-800">
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted">Rank</th>
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted">Team</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">Points</th>
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">Runs</th>
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">Wickets</th>
-                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">6s / 4s</th>
-                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-right">Status</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">Boundaries</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-widest text-text-muted text-right">Profile</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/50">
-                {leaderboard.map((team, i) => (
-                  <tr key={team.team_id} className="hover:bg-white/5 transition-colors group">
+                {leaderboard.map((team, i) => {
+                  const stats = getTeamStats(team.team_id)
+                  return (
+                  <tr 
+                    key={team.team_id} 
+                    onClick={() => navigate(`/teams/${team.team_id}`)}
+                    className="hover:bg-primary/5 transition-colors group cursor-pointer"
+                  >
                     <td className="p-6">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black italic
-                        ${i === 0 ? 'bg-accent text-background scale-110 shadow-lg' : 
-                          i === 1 ? 'bg-gray-300 text-background' :
-                          i === 2 ? 'bg-orange-600 text-background' : 'bg-gray-800 text-text-muted'}`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black italic shadow-lg transition-transform group-hover:scale-110
+                        ${i === 0 ? 'bg-accent text-background border-2 border-white/20' : 
+                          i === 1 ? 'bg-slate-300 text-background' :
+                          i === 2 ? 'bg-orange-500 text-background' : 'bg-gray-800 text-text-muted'}`}>
                         {i + 1}
                       </div>
                     </td>
                     <td className="p-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-700 to-gray-900 overflow-hidden border border-white/10 flex items-center justify-center">
-                          {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-cover" /> : <Trophy size={20} className="text-text-muted" />}
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-gray-900 border-2 border-white/5 flex items-center justify-center overflow-hidden shadow-2xl group-hover:border-primary/50 transition-all">
+                          {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-contain" /> : <Trophy size={24} className="text-text-muted" />}
                         </div>
                         <div>
-                          <Link to={`/teams/${team.team_id}`} className="font-black text-text-primary hover:text-accent transition-colors block">
+                          <div className="font-black text-lg text-text-primary group-hover:text-primary transition-colors uppercase tracking-tight">
                             {team.team_name}
-                          </Link>
-                          <div className="text-[10px] font-bold text-accent uppercase">Season Contender</div>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[9px] font-black bg-primary/20 text-primary px-2 py-0.5 rounded uppercase tracking-widest">Group A</span>
+                            <span className="text-[9px] font-black bg-white/5 text-text-muted px-2 py-0.5 rounded uppercase tracking-widest">Active</span>
+                          </div>
                         </div>
                       </div>
                     </td>
                     <td className="p-6 text-center">
-                      <div className="font-black text-text-primary text-xl">{team.total_runs || '0'}</div>
-                      <div className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Total Runs</div>
+                      <div className="font-black text-text-primary text-2xl">{team.points || '0'}</div>
+                      <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Points</div>
                     </td>
                     <td className="p-6 text-center">
-                      <div className="font-black text-text-primary text-xl">{team.total_wicket || '0'}</div>
-                      <div className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Total Wickets</div>
+                      <div className="font-black text-text-primary text-xl">{stats.runs}</div>
+                      <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Runs</div>
                     </td>
                     <td className="p-6 text-center">
-                      <div className="font-black text-text-primary text-lg">
-                        <span className="text-accent">{team.total_six || '0'}</span>
-                        <span className="text-text-muted mx-1">/</span>
-                        <span className="text-primary">{team.total_four || '0'}</span>
-                      </div>
-                      <div className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Boundaries</div>
+                      <div className="font-black text-text-primary text-xl">{stats.wickets}</div>
+                      <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Wickets</div>
                     </td>
-                    <td className="p-6 text-right">
-                       <div className="inline-flex items-center gap-1 text-primary">
-                          <Zap size={14} className="fill-primary" />
-                          <span className="text-[10px] font-black uppercase">Active</span>
+                    <td className="p-6 text-center">
+                       <div className="flex items-center justify-center gap-2">
+                          <div className="text-center">
+                             <div className="font-black text-accent text-lg">{team.total_six || '0'}</div>
+                             <div className="text-[8px] font-black text-text-muted uppercase">6s</div>
+                          </div>
+                          <div className="w-px h-6 bg-white/10" />
+                          <div className="text-center">
+                             <div className="font-black text-primary text-lg">{team.total_four || '0'}</div>
+                             <div className="text-[8px] font-black text-text-muted uppercase">4s</div>
+                          </div>
                        </div>
                     </td>
+                    <td className="p-6 text-right">
+                       <button className="px-4 py-2 bg-white/5 group-hover:bg-primary group-hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                          View Profile
+                       </button>
+                    </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>

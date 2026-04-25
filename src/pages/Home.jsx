@@ -151,29 +151,40 @@ export default function Home() {
               ) : leaderboard.length > 0 ? (
                 <div className="divide-y divide-white/5">
                   {leaderboard.slice(0, 5).map((player, i) => (
-                    <div key={player.player_id} className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group">
+                    <Link 
+                      key={player.player_id} 
+                      to={`/teams/${player.team_id}`}
+                      className="flex items-center justify-between p-4 hover:bg-primary/10 transition-all group block"
+                    >
                       <div className="flex items-center gap-3">
                         <div className="relative">
-                           <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-white/10">
-                             {player.profile_photo ? <img src={player.profile_photo} alt="" /> : <Trophy className="m-2 text-text-muted" />}
+                           <div className="w-12 h-12 rounded-xl bg-gray-900 overflow-hidden border border-white/10 shadow-lg group-hover:border-primary/50 transition-all">
+                             {player.profile_photo ? (
+                               <img src={player.profile_photo} alt="" className="w-full h-full object-cover" />
+                             ) : (
+                               <div className="w-full h-full flex items-center justify-center bg-primary/5">
+                                 <Trophy className="text-primary/20" size={24} />
+                               </div>
+                             )}
                            </div>
-                           <div className="absolute -top-1 -left-1 w-5 h-5 bg-accent text-background text-[10px] font-black rounded-full flex items-center justify-center border-2 border-surface">{i+1}</div>
+                           <div className="absolute -top-1 -left-1 w-6 h-6 bg-primary text-white text-[10px] font-black rounded-lg flex items-center justify-center border-2 border-surface shadow-lg">{i+1}</div>
                         </div>
                         <div>
-                          <div className="font-bold text-sm text-text-primary group-hover:text-accent transition-colors">{player.player_name}</div>
-                          <Link 
-                            to={`/teams/${player.team_id}`}
-                            className="text-[10px] text-accent uppercase font-black hover:underline transition-all block"
-                          >
+                          <div className="font-black text-sm text-text-primary group-hover:text-primary transition-colors uppercase tracking-tight">{player.player_name}</div>
+                          <div className="text-[10px] text-accent uppercase font-black tracking-widest opacity-70">
                             {player.team_name}
-                          </Link>
+                          </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-accent font-black italic">{player.points || player.total_runs}</div>
-                        <div className="text-[9px] text-text-muted font-bold uppercase">Points</div>
+                        <div className="text-primary font-black italic text-lg leading-none">
+                          {player.total_runs || player.points || 0}
+                        </div>
+                        <div className="text-[9px] text-text-muted font-bold uppercase tracking-tighter">
+                          {player.total_wickets ? `${player.total_wickets} Wkts` : 'Runs'}
+                        </div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (

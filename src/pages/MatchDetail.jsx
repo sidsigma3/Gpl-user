@@ -9,7 +9,15 @@ export default function MatchDetail() {
   const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'summary')
   const [expandedInning, setExpandedInning] = useState(0)
+  const [showToast, setShowToast] = useState(false)
   const queryClient = useQueryClient()
+
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => setShowToast(false), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [showToast])
 
   useEffect(() => {
     const tab = searchParams.get('tab')
@@ -30,7 +38,7 @@ export default function MatchDetail() {
     mutationFn: ({ playerId, playerName }) => submitVote(id, playerId, playerName),
     onSuccess: () => {
       queryClient.invalidateQueries(['match-votes', id])
-      alert('Your vote has been recorded!')
+      setShowToast(true)
     }
   })
 
@@ -38,6 +46,39 @@ export default function MatchDetail() {
   const summary = details?.summary?.summaryData?.data
   const scorecard = details?.scorecard?.scorecard || []
   const votes = voteRes?.data || []
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  // Handle API failure or missing data
+  if (detailsRes?.success === false || !details || !summary) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center min-h-[60vh] space-y-6 animate-in fade-in duration-700">
+        <div className="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center">
+          <Info className="text-accent" size={40} />
+        </div>
+        <div className="space-y-2 max-w-sm">
+           <h2 className="text-2xl font-black uppercase italic text-accent">Sync Required</h2>
+           <p className="text-text-muted text-sm leading-relaxed">
+             {detailsRes?.error || "This match data hasn't been synced to the database yet. Live updates are blocked in the cloud."}
+           </p>
+        </div>
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          <Link to="/" className="px-8 py-3 bg-primary text-white font-black uppercase text-xs rounded-xl shadow-lg hover:scale-105 transition-all text-center">
+            Return Home
+          </Link>
+          <button onClick={() => window.location.reload()} className="text-[10px] font-black uppercase text-text-muted hover:text-accent">
+            Try Refreshing
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // Extract all players from scorecard for voting
   const allPlayers = scorecard.reduce((acc, inning) => {
@@ -53,23 +94,6 @@ export default function MatchDetail() {
     return acc
   }, [])
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (!details || !summary) {
-    return (
-      <div className="text-center p-12 space-y-4">
-        <div className="text-text-muted italic">Could not load match details.</div>
-        <Link to="/matches" className="text-accent font-black uppercase text-sm">Return to Schedule</Link>
-      </div>
-    )
-  }
-
   // Helper to get team logo by ID
   const getTeamLogo = (teamId) => {
     if (String(summary.team_a_id) === String(teamId)) return summary.team_a_logo
@@ -78,7 +102,19 @@ export default function MatchDetail() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 relative">
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-10 fade-in duration-500">
+          <div className="bg-primary text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/20 backdrop-blur-xl">
+            <div className="bg-white/20 p-1 rounded-full">
+              <CheckCircle2 size={18} />
+            </div>
+            <div className="font-black uppercase italic tracking-wider text-xs">Vote Recorded Successfully!</div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link to="/matches" className="p-2 hover:bg-white/5 rounded-full transition-colors">
@@ -92,36 +128,36 @@ export default function MatchDetail() {
         <div className="p-6 md:p-10 space-y-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             {/* Team A */}
-            <div className="flex flex-col items-center gap-4 text-center w-full md:w-1/3">
-              <div className="w-24 h-24 rounded-3xl bg-gray-900 border-4 border-surface shadow-2xl overflow-hidden flex items-center justify-center p-2">
-                {summary.team_a.logo ? <img src={summary.team_a.logo} alt="" className="w-full h-full object-contain" /> : <Trophy size={32} className="text-text-muted" />}
+            <Link to={summary?.team_a?.id ? `/teams/${summary.team_a.id}` : '#'} className="flex flex-col items-center gap-4 text-center w-full md:w-1/3 group transition-transform hover:scale-105 active:scale-95 cursor-pointer">
+              <div className="w-24 h-24 rounded-3xl bg-gray-900 border-4 border-surface shadow-2xl overflow-hidden flex items-center justify-center p-2 group-hover:border-primary transition-all">
+                {summary?.team_a?.logo ? <img src={summary.team_a.logo} alt="" className="w-full h-full object-contain" /> : <Trophy size={32} className="text-text-muted" />}
               </div>
-              <div className="font-black text-xl">{summary.team_a.name}</div>
-              <div className="text-4xl font-black text-primary">{summary.team_a.summary || '0/0'}</div>
-              <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{summary.team_a.innings?.[0]?.summary?.over}</div>
-            </div>
+              <div className="font-black text-xl group-hover:text-primary transition-colors">{summary?.team_a?.name}</div>
+              <div className="text-4xl font-black text-primary">{summary?.team_a?.summary || '0/0'}</div>
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{summary?.team_a?.innings?.[0]?.summary?.over}</div>
+            </Link>
 
             {/* VS */}
             <div className="flex flex-col items-center">
               <div className="w-12 h-12 bg-accent text-background rounded-full flex items-center justify-center font-black italic shadow-lg -rotate-12 z-10">VS</div>
               <div className="h-px w-32 bg-gradient-to-r from-transparent via-gray-800 to-transparent my-4" />
-              <div className="text-[10px] font-black text-accent uppercase tracking-[0.2em]">{summary.tournament_round_name}</div>
+              <div className="text-[10px] font-black text-accent uppercase tracking-[0.2em]">{summary?.tournament_round_name}</div>
             </div>
 
             {/* Team B */}
-            <div className="flex flex-col items-center gap-4 text-center w-full md:w-1/3">
-              <div className="w-24 h-24 rounded-3xl bg-gray-900 border-4 border-surface shadow-2xl overflow-hidden flex items-center justify-center p-2">
-                {summary.team_b.logo ? <img src={summary.team_b.logo} alt="" className="w-full h-full object-contain" /> : <Trophy size={32} className="text-text-muted" />}
+            <Link to={summary?.team_b?.id ? `/teams/${summary.team_b.id}` : '#'} className="flex flex-col items-center gap-4 text-center w-full md:w-1/3 group transition-transform hover:scale-105 active:scale-95 cursor-pointer">
+              <div className="w-24 h-24 rounded-3xl bg-gray-900 border-4 border-surface shadow-2xl overflow-hidden flex items-center justify-center p-2 group-hover:border-primary transition-all">
+                {summary?.team_b?.logo ? <img src={summary.team_b.logo} alt="" className="w-full h-full object-contain" /> : <Trophy size={32} className="text-text-muted" />}
               </div>
-              <div className="font-black text-xl">{summary.team_b.name}</div>
-              <div className="text-4xl font-black text-primary">{summary.team_b.summary || '0/0'}</div>
-              <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{summary.team_b.innings?.[0]?.summary?.over}</div>
-            </div>
+              <div className="font-black text-xl group-hover:text-primary transition-colors">{summary?.team_b?.name}</div>
+              <div className="text-4xl font-black text-primary">{summary?.team_b?.summary || '0/0'}</div>
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{summary?.team_b?.innings?.[0]?.summary?.over}</div>
+            </Link>
           </div>
 
           <div className="pt-6 border-t border-gray-800 text-center">
             <div className="text-accent font-black italic uppercase tracking-widest text-lg">
-              {summary.winning_team} won by {summary.win_by}
+              {summary?.winning_team ? `${summary.winning_team} won by ${summary.win_by}` : 'Match in Progress / TBD'}
             </div>
             <div className="text-[10px] font-bold text-text-muted mt-2 uppercase tracking-widest flex items-center justify-center gap-2">
               <Info size={12} /> {summary.toss_details}
