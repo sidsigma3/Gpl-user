@@ -4,25 +4,37 @@ import { getTeams, getMatches } from '../api/client'
 import { ArrowLeft, Trophy, Users, Calendar, Target, TrendingUp, Info, ArrowRight } from 'lucide-react'
 import { useEffect } from 'react'
 
+import { useSeason } from '../context/SeasonContext'
+
 export default function TeamDetail() {
   const navigate = useNavigate()
   const { id: teamId } = useParams()
+  const { activeSeason } = useSeason()
 
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [teamId])
 
+  const { data: leadRes, isLoading: leadLoading } = useQuery({
+    queryKey: ['leaderboard', activeSeason?.id],
+    queryFn: () => getLeaderboard(activeSeason?.id),
+    enabled: !!activeSeason
+  })
+
   const { data: teamsRes, isLoading: teamsLoading } = useQuery({
-    queryKey: ['teams'],
-    queryFn: getTeams
+    queryKey: ['teams', activeSeason?.id],
+    queryFn: () => getTeams(activeSeason?.id),
+    enabled: !!activeSeason
   })
 
   const { data: matchesRes, isLoading: matchesLoading } = useQuery({
-    queryKey: ['matches'],
-    queryFn: getMatches
+    queryKey: ['matches', activeSeason?.id],
+    queryFn: () => getMatches(activeSeason?.id),
+    enabled: !!activeSeason
   })
 
-  const team = teamsRes?.data?.find(t => String(t.id) === String(teamId))
+  const teams = teamsRes?.data || []
+  const team = teams.find(t => String(t.id) === String(teamId))
   
   // Robust match filtering
   const teamMatches = matchesRes?.data?.filter(m => {
@@ -149,12 +161,15 @@ export default function TeamDetail() {
                  return (
                   <div 
                     key={idx} 
-                    onClick={() => navigate(`/matches/${match.id}/details`)}
+                    onClick={() => navigate(`/matches/${match.id}`)}
                     className="flex items-center justify-between p-6 card bg-surface hover:border-primary/40 transition-all group relative overflow-hidden cursor-pointer"
                   >
-                    {isWin && <div className="absolute top-0 right-0 p-1 bg-primary text-white text-[8px] font-black uppercase tracking-tighter px-2 rounded-bl-lg shadow-lg">Winner</div>}
+                    {isWin && m.winning_team_id && <div className="absolute top-0 right-0 p-1 bg-primary text-white text-[8px] font-black uppercase tracking-tighter px-2 rounded-bl-lg shadow-lg">Winner</div>}
                     <div className="space-y-1">
-                       <div className="text-[10px] font-black text-text-muted uppercase tracking-widest">{m.match_date || m.created_date}</div>
+                       <div className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                         {m.match_date ? new Date(m.match_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 
+                          m.match_start_time ? new Date(m.match_start_time).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'TBD'}
+                       </div>
                        
                        {/* Opponent Link */}
                        <div 
@@ -170,11 +185,19 @@ export default function TeamDetail() {
                          </div>
                        </div>
 
-                       <div className="text-xs font-bold text-text-muted italic">{m.result_desc || m.match_result}</div>
+                       <div className="text-xs font-bold text-text-muted italic">
+                         {m.match_result === 'upcoming' ? 'Scheduled' : (m.result_desc || m.match_result)}
+                       </div>
                     </div>
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black italic text-xs uppercase shadow-2xl border-4 ${isWin ? 'bg-primary text-white border-primary/20' : 'bg-gray-800 text-text-muted border-gray-700'}`}>
-                       {isWin ? 'W' : 'L'}
-                    </div>
+                    {m.winning_team_id ? (
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black italic text-xs uppercase shadow-2xl border-4 ${isWin ? 'bg-primary text-white border-primary/20' : 'bg-gray-800 text-text-muted border-gray-700'}`}>
+                         {isWin ? 'W' : 'L'}
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center bg-accent/10 border-2 border-accent/20 text-accent font-black text-[10px] uppercase">
+                        VS
+                      </div>
+                    )}
                   </div>
                  )
                }) : (

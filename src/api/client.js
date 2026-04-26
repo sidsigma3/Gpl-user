@@ -6,18 +6,18 @@ const client = axios.create({
   baseURL: API_URL,
 });
 
-export const getMatches = async () => {
-  const response = await client.get('/matches');
+export const getMatches = async (tournamentId) => {
+  const response = await client.get('/matches', { params: { tournamentId } });
   return response.data;
 };
 
-export const getTeams = async () => {
-  const response = await client.get('/teams');
+export const getTeams = async (tournamentId) => {
+  const response = await client.get('/teams', { params: { tournamentId } });
   return response.data;
 };
 
-export const getLeaderboard = async () => {
-  const response = await client.get('/leaderboard');
+export const getLeaderboard = async (tournamentId) => {
+  const response = await client.get('/leaderboard', { params: { tournamentId } });
   return response.data;
 };
 
@@ -43,6 +43,11 @@ export const submitVote = async (matchId, playerId, playerName) => {
 
 export const getVoteCounts = async (matchId) => {
   const response = await client.get(`/matches/${matchId}/votes`);
+  return response.data;
+};
+
+export const getTournaments = async () => {
+  const response = await client.get('/tournaments');
   return response.data;
 };
 

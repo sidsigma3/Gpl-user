@@ -1,27 +1,66 @@
 import { Trophy, Clock, Bell, Share2, ArrowRight } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { getMatches, getLeaderboard } from '../api/client'
-import { Link } from 'react-router-dom'
+import { getMatches, getLeaderboard, getTeams } from '../api/client'
+import { Link, useNavigate } from 'react-router-dom'
 
 const announcements = [
   { id: 1, title: 'Tournament Semi-Finals Schedule Out!', time: '2h ago' },
   { id: 2, title: 'Player Registration deadline extended to Friday.', time: '1d ago' },
 ]
 
+import { useSeason } from '../context/SeasonContext'
+
 export default function Home() {
+  const navigate = useNavigate()
+  const { activeSeason } = useSeason()
+  
   const { data: matchRes, isLoading: matchesLoading } = useQuery({
-    queryKey: ['matches'],
-    queryFn: getMatches
+    queryKey: ['matches', activeSeason?.id],
+    queryFn: () => getMatches(activeSeason?.id),
+    enabled: !!activeSeason
   })
 
   const { data: leadRes, isLoading: leadLoading } = useQuery({
-    queryKey: ['leaderboard'],
-    queryFn: getLeaderboard
+    queryKey: ['leaderboard', activeSeason?.id],
+    queryFn: () => getLeaderboard(activeSeason?.id),
+    enabled: !!activeSeason
+  })
+
+  const { data: teamRes } = useQuery({
+    queryKey: ['teams', activeSeason?.id],
+    queryFn: () => getTeams(activeSeason?.id),
+    enabled: !!activeSeason
   })
 
   const matches = matchRes?.data || []
-  const leaderboard = leadRes?.data || []
+  const leaderboardRaw = leadRes?.data || []
+  const teams = teamRes?.data || []
   
+  // Logic: Use player leaderboard if available, otherwise fallback to team standings for the sidebar
+  const leaderboard = leaderboardRaw.length > 0 
+    ? leaderboardRaw 
+    : teams.map(t => ({
+        player_id: t.id,
+        player_name: t.data.team_name,
+        team_name: 'Participating Team',
+        logo: t.data.logo || t.data.team_logo,
+        points: 0
+      }))
+
+  // Calculate aggregate stats from match data (more reliable than leaderboard)
+  const stats = matches.reduce((acc, m) => {
+    const match = m.data
+    if (match.team_a_innings?.[0]) {
+      acc.runs += (match.team_a_innings[0].total_run || 0)
+      acc.wickets += (match.team_b_innings?.[0]?.total_wicket || 0)
+    }
+    if (match.team_b_innings?.[0]) {
+      acc.runs += (match.team_b_innings[0].total_run || 0)
+      acc.wickets += (match.team_a_innings?.[0]?.total_wicket || 0)
+    }
+    return acc
+  }, { runs: 0, wickets: 0 })
+
   // Get latest match
   const latestMatch = matches[0]?.data
 
@@ -35,7 +74,7 @@ export default function Home() {
         
         <div className="absolute bottom-8 left-8 z-20 space-y-3">
           <div className="inline-flex items-center gap-2 bg-accent/90 backdrop-blur-md text-background px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest shadow-lg">
-            Season 2024
+            {activeSeason?.name || 'Tournament Official'}
           </div>
           <h1 className="text-4xl md:text-6xl font-black italic text-white drop-shadow-2xl leading-none">
             GOVINDPALLY <span className="text-accent">PREMIER</span> LEAGUE
@@ -48,9 +87,9 @@ export default function Home() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Matches', count: matches.length, path: '/matches', icon: Clock, color: 'text-blue-400' },
-          { label: 'Teams', count: 5, path: '/players', icon: Trophy, color: 'text-accent' },
-          { label: 'Runs Scored', count: '4,280', path: '#', icon: Trophy, color: 'text-primary' },
-          { label: 'Wickets', count: '142', path: '#', icon: Trophy, color: 'text-red-400' },
+          { label: 'Teams', count: teams.length, path: '/standings', icon: Trophy, color: 'text-accent' },
+          { label: 'Runs Scored', count: stats.runs.toLocaleString(), path: '#', icon: Trophy, color: 'text-primary' },
+          { label: 'Wickets', count: stats.wickets.toLocaleString(), path: '#', icon: Trophy, color: 'text-red-400' },
         ].map((stat) => (
           <Link key={stat.label} to={stat.path} className="card p-4 hover:border-accent/50 transition-all group active:scale-95">
             <div className="flex items-center gap-3">
@@ -82,46 +121,46 @@ export default function Home() {
           {matchesLoading ? (
             <div className="card h-48 animate-pulse bg-surface/50" />
           ) : latestMatch ? (
-            <div className="card relative group overflow-hidden border-primary/20 bg-gradient-to-br from-surface to-background shadow-xl">
-              <div className="absolute top-0 right-0 p-4">
+            <Link to={`/matches/${latestMatch.match_id}`} className="block card relative group overflow-hidden border-primary/20 bg-gradient-to-br from-surface to-background shadow-xl hover:border-primary/50 transition-all">
+              <div className="absolute top-0 right-0 p-4 z-30">
                 <Share2 size={18} className="text-text-muted hover:text-accent cursor-pointer" />
               </div>
               
               <div className="p-8">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-8">
                   {/* Team A */}
-                  <Link to={`/teams/${latestMatch.team_a_id}`} className="flex flex-col items-center gap-3 text-center w-full md:w-1/3 group/team">
+                  <div onClick={(e) => { e.preventDefault(); navigate(`/teams/${latestMatch.team_a_id}`) }} className="flex flex-col items-center gap-3 text-center w-full md:w-1/3 group/team">
                     <div className="w-20 h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full border-4 border-surface shadow-2xl flex items-center justify-center overflow-hidden group-hover/team:border-primary transition-all">
                        {latestMatch.team_a_logo ? (
-                         <img src={`https://media.cricheroes.in/team_logo/${latestMatch.team_a_logo}`} alt="" className="w-full h-full object-cover" />
+                         <img src={latestMatch.team_a_logo.startsWith('http') ? latestMatch.team_a_logo : `https://media.cricheroes.in/team_logo/${latestMatch.team_a_logo}`} alt="" className="w-full h-full object-cover" />
                        ) : (
                          <span className="text-2xl font-black text-white">{latestMatch.team_a?.substring(0,3).toUpperCase()}</span>
                        )}
                     </div>
                     <div className="font-black text-lg group-hover/team:text-primary transition-colors">{latestMatch.team_a}</div>
                     <div className="text-3xl font-black text-primary">{latestMatch.team_a_summary || '0/0'}</div>
-                  </Link>
+                  </div>
 
                   {/* VS Divider */}
                   <div className="flex flex-col items-center">
                     <div className="w-10 h-10 bg-accent text-background rounded-full flex items-center justify-center font-black italic shadow-lg -rotate-12">VS</div>
                     <div className="text-[10px] font-bold text-text-muted mt-4 uppercase tracking-[0.2em]">
-                      {latestMatch.match_start_time ? new Date(latestMatch.match_start_time).toLocaleDateString() : 'TBD'}
+                      {latestMatch.match_start_time ? new Date(latestMatch.match_start_time).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'TBD'}
                     </div>
                   </div>
 
                   {/* Team B */}
-                  <Link to={`/teams/${latestMatch.team_b_id}`} className="flex flex-col items-center gap-3 text-center w-full md:w-1/3 group/team">
+                  <div onClick={(e) => { e.preventDefault(); navigate(`/teams/${latestMatch.team_b_id}`) }} className="flex flex-col items-center gap-3 text-center w-full md:w-1/3 group/team">
                     <div className="w-20 h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full border-4 border-surface shadow-2xl flex items-center justify-center overflow-hidden group-hover/team:border-primary transition-all">
                        {latestMatch.team_b_logo ? (
-                         <img src={`https://media.cricheroes.in/team_logo/${latestMatch.team_b_logo}`} alt="" className="w-full h-full object-cover" />
+                         <img src={latestMatch.team_b_logo.startsWith('http') ? latestMatch.team_b_logo : `https://media.cricheroes.in/team_logo/${latestMatch.team_b_logo}`} alt="" className="w-full h-full object-cover" />
                        ) : (
                          <span className="text-2xl font-black text-white">{latestMatch.team_b?.substring(0,3).toUpperCase()}</span>
                        )}
                     </div>
                     <div className="font-black text-lg group-hover/team:text-primary transition-colors">{latestMatch.team_b}</div>
                     <div className="text-3xl font-black text-primary">{latestMatch.team_b_summary || '0/0'}</div>
-                  </Link>
+                  </div>
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-gray-800 text-center">
@@ -130,7 +169,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
           ) : (
             <div className="card p-12 text-center text-text-muted">No matches found.</div>
           )}
@@ -150,17 +189,23 @@ export default function Home() {
                 </div>
               ) : leaderboard.length > 0 ? (
                 <div className="divide-y divide-white/5">
-                  {leaderboard.slice(0, 5).map((player, i) => (
+                  {leaderboard.slice(0, 5).map((player, i) => {
+                    const photo = player.profile_photo || player.logo
+                    return (
                     <Link 
-                      key={player.player_id} 
-                      to={`/teams/${player.team_id}`}
+                      key={player.player_id || player.team_id} 
+                      to={`/teams/${player.team_id || player.player_id}`}
                       className="flex items-center justify-between p-4 hover:bg-primary/10 transition-all group block"
                     >
                       <div className="flex items-center gap-3">
                         <div className="relative">
                            <div className="w-12 h-12 rounded-xl bg-gray-900 overflow-hidden border border-white/10 shadow-lg group-hover:border-primary/50 transition-all">
-                             {player.profile_photo ? (
-                               <img src={player.profile_photo} alt="" className="w-full h-full object-cover" />
+                             {photo ? (
+                               <img 
+                                 src={photo.startsWith('http') ? photo : `https://media.cricheroes.in/player_profile/${photo}`} 
+                                 alt="" 
+                                 className="w-full h-full object-cover" 
+                               />
                              ) : (
                                <div className="w-full h-full flex items-center justify-center bg-primary/5">
                                  <Trophy className="text-primary/20" size={24} />
@@ -181,11 +226,11 @@ export default function Home() {
                           {player.total_runs || player.points || 0}
                         </div>
                         <div className="text-[9px] text-text-muted font-bold uppercase tracking-tighter">
-                          {player.total_wickets ? `${player.total_wickets} Wkts` : 'Runs'}
+                          {player.total_wickets ? `${player.total_wickets} Wkts` : 'Points'}
                         </div>
                       </div>
                     </Link>
-                  ))}
+                  )})}
                 </div>
               ) : (
                 <div className="p-8 text-center text-xs text-text-muted italic">No leaderboard data.</div>

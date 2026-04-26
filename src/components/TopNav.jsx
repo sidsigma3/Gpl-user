@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Trophy } from 'lucide-react'
+import SeasonSelector from './SeasonSelector'
 
 const tabs = [
   { name: 'Home', path: '/' },
@@ -14,15 +15,18 @@ export default function TopNav() {
   return (
     <nav className="hidden md:block sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-white/5">
       <div className="container mx-auto px-4 h-20 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-12 h-12 bg-gradient-to-br from-primary to-green-800 rounded-2xl flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform">
-            <Trophy className="text-accent" size={28} />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-black text-xl tracking-tighter leading-none">GOVINDPALLY <span className="text-accent">PREMIER</span> LEAGUE</span>
-            <span className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Season 2 Official</span>
-          </div>
-        </Link>
+        <div className="flex items-center gap-8">
+          <Link to="/" className="flex items-center gap-4 group">
+            <div className="w-14 h-14 bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 overflow-hidden border border-white/10">
+              <img src="https://media.cricheroes.in/tournament_logo/1777186363265_5ID8kvwSWX8f.jpg" alt="GPL Logo" className="w-full h-full object-contain p-1" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-black text-2xl tracking-tighter leading-none bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">GPL <span className="text-accent">2026</span></span>
+              <span className="text-[9px] font-bold text-accent uppercase tracking-[0.4em] opacity-80">Govindpally Premier League</span>
+            </div>
+          </Link>
+          <SeasonSelector />
+        </div>
         
         <div className="flex items-center gap-10">
           {tabs.map((tab) => (

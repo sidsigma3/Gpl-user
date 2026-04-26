@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App.jsx'
 import './index.css'
 
+import { SeasonProvider } from './context/SeasonContext.jsx'
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -16,7 +18,9 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <SeasonProvider>
+        <App />
+      </SeasonProvider>
     </QueryClientProvider>
   </React.StrictMode>,
 )

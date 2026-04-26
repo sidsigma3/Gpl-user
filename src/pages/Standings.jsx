@@ -1,22 +1,47 @@
 import { useQuery } from '@tanstack/react-query'
-import { getLeaderboard, getMatches } from '../api/client'
+import { getLeaderboard, getMatches, getTeams } from '../api/client'
 import { Trophy, Star, TrendingUp, Search, Zap } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
+import { useSeason } from '../context/SeasonContext'
+
 export default function Standings() {
   const navigate = useNavigate()
+  const { activeSeason } = useSeason()
+  
   const { data: leadRes, isLoading: leadLoading } = useQuery({
-    queryKey: ['leaderboard'],
-    queryFn: getLeaderboard
+    queryKey: ['leaderboard', activeSeason?.id],
+    queryFn: () => getLeaderboard(activeSeason?.id),
+    enabled: !!activeSeason
   })
 
   const { data: matchesRes, isLoading: matchesLoading } = useQuery({
-    queryKey: ['matches'],
-    queryFn: getMatches
+    queryKey: ['matches', activeSeason?.id],
+    queryFn: () => getMatches(activeSeason?.id),
+    enabled: !!activeSeason
   })
 
-  const leaderboard = leadRes?.data || []
+  const { data: teamsRes, isLoading: teamsLoading } = useQuery({
+    queryKey: ['teams', activeSeason?.id],
+    queryFn: () => getTeams(activeSeason?.id),
+    enabled: !!activeSeason
+  })
+
   const matches = matchesRes?.data || []
+  const teams = teamsRes?.data || []
+  
+  // Logic: Use leaderboard if available, otherwise fallback to teams list
+  const rawLeaderboard = leadRes?.data || []
+  const leaderboard = rawLeaderboard.length > 0 
+    ? rawLeaderboard 
+    : teams.map(t => ({
+        team_id: t.id,
+        team_name: t.data.team_name,
+        logo: t.data.logo || t.data.team_logo,
+        points: 0,
+        total_six: 0,
+        total_four: 0
+      }))
 
   const getTeamStats = (teamId) => {
     let runs = 0
@@ -43,7 +68,7 @@ export default function Standings() {
         </div>
       </div>
 
-      {leadLoading || matchesLoading ? (
+      {leadLoading || matchesLoading || teamsLoading ? (
         <div className="card animate-pulse h-96" />
       ) : (
         <div className="card overflow-hidden border-white/5 shadow-2xl">

@@ -3,11 +3,16 @@ import { getMatches } from '../api/client'
 import { Clock, Trophy, MapPin, Share2 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
+import { useSeason } from '../context/SeasonContext'
+
 export default function Matches() {
   const navigate = useNavigate()
+  const { activeSeason } = useSeason()
+  
   const { data: matchRes, isLoading } = useQuery({
-    queryKey: ['matches'],
-    queryFn: getMatches
+    queryKey: ['matches', activeSeason?.id],
+    queryFn: () => getMatches(activeSeason?.id),
+    enabled: !!activeSeason
   })
 
   const matches = matchRes?.data || []
@@ -39,10 +44,10 @@ export default function Matches() {
                   {/* Status Side */}
                   <div className="md:w-48 bg-primary/5 p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-gray-800">
                     <div className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">
-                      {new Date(m.match_start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {new Date(m.match_start_time).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </div>
                     <div className="text-xl font-black text-primary">
-                       {new Date(m.match_start_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                       {new Date(m.match_start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                     <div className="mt-4 px-3 py-1 rounded-full bg-surface border border-gray-700 text-[10px] font-bold uppercase text-accent">
                       {m.status || 'Upcoming'}
@@ -64,7 +69,7 @@ export default function Matches() {
                         className="flex-1 flex items-center gap-3 group/team text-left hover:bg-white/5 p-2 rounded-xl transition-all active:scale-95"
                       >
                         <div className="w-12 h-12 rounded-lg bg-gray-900 border border-white/5 flex items-center justify-center overflow-hidden shrink-0 group-hover/team:border-primary transition-colors">
-                           {m.team_a_logo ? <img src={`https://media.cricheroes.in/team_logo/${m.team_a_logo}`} alt="" className="w-full h-full object-cover" /> : <Trophy size={16} className="text-text-muted" />}
+                           {m.team_a_logo ? <img src={m.team_a_logo.startsWith('http') ? m.team_a_logo : `https://media.cricheroes.in/team_logo/${m.team_a_logo}`} alt="" className="w-full h-full object-cover" /> : <Trophy size={16} className="text-text-muted" />}
                         </div>
                         <div>
                           <div className="text-lg font-black group-hover/team:text-primary transition-colors">
@@ -87,7 +92,7 @@ export default function Matches() {
                           <div className="text-2xl font-black text-text-muted mt-1">{m.team_b_summary || '-'}</div>
                         </div>
                         <div className="w-12 h-12 rounded-lg bg-gray-900 border border-white/5 flex items-center justify-center overflow-hidden shrink-0 group-hover/team:border-primary transition-colors">
-                           {m.team_b_logo ? <img src={`https://media.cricheroes.in/team_logo/${m.team_b_logo}`} alt="" className="w-full h-full object-cover" /> : <Trophy size={16} className="text-text-muted" />}
+                           {m.team_b_logo ? <img src={m.team_b_logo.startsWith('http') ? m.team_b_logo : `https://media.cricheroes.in/team_logo/${m.team_b_logo}`} alt="" className="w-full h-full object-cover" /> : <Trophy size={16} className="text-text-muted" />}
                         </div>
                       </button>
                     </div>
