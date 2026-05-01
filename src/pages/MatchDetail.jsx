@@ -1,6 +1,6 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getMatchDetails, submitVote, getVoteCounts } from '../api/client'
+import { getMatchDetails, submitVote, getVoteCounts, getMatchInsights } from '../api/client'
 import { ArrowLeft, Trophy, Info, Users, BarChart3, ChevronDown, ChevronUp, Heart, CheckCircle2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -34,6 +34,12 @@ export default function MatchDetail() {
     queryFn: () => getVoteCounts(id)
   })
 
+  const { data: insightsRes } = useQuery({
+    queryKey: ['match-insights', id],
+    queryFn: () => getMatchInsights(id),
+    refetchInterval: 60000 // Refetch every minute
+  })
+
   const voteMutation = useMutation({
     mutationFn: ({ playerId, playerName }) => submitVote(id, playerId, playerName),
     onSuccess: () => {
@@ -46,6 +52,7 @@ export default function MatchDetail() {
   const summary = details?.summary?.summaryData?.data
   const scorecard = details?.scorecard?.scorecard || []
   const votes = voteRes?.data || []
+  const insights = insightsRes || {}
 
   if (isLoading) {
     return (
@@ -163,6 +170,49 @@ export default function MatchDetail() {
               <Info size={12} /> {summary.toss_details}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Win Predictor & AI Commentary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 card p-6 bg-gradient-to-br from-surface to-background border-white/5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-accent flex items-center gap-2">
+              <BarChart3 size={16} /> Win Probability
+            </h3>
+            <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest bg-white/5 px-2 py-1 rounded">Live AI Prediction</span>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="relative h-12 bg-gray-900 rounded-2xl overflow-hidden flex border border-white/5">
+              <div 
+                className="h-full bg-gradient-to-r from-primary to-primary-light transition-all duration-1000 relative group"
+                style={{ width: `${insights.probability?.team_a_pct || 50}%` }}
+              >
+                <div className="absolute inset-0 flex items-center px-4 font-black text-xs text-white">
+                  {summary?.team_a?.name}: {insights.probability?.team_a_pct || 50}%
+                </div>
+              </div>
+              <div className="flex-1 h-full bg-gradient-to-l from-accent to-accent/80 transition-all duration-1000 relative">
+                <div className="absolute inset-0 flex items-center justify-end px-4 font-black text-xs text-background">
+                  {insights.probability?.team_b_pct || 50}% :{summary?.team_b?.name}
+                </div>
+              </div>
+              <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-0.5 bg-white/20 z-10" />
+            </div>
+            <div className="text-[10px] text-text-muted font-bold italic text-center uppercase tracking-wider">
+              "{insights.probability?.analysis || 'Calculating match dynamics and momentum...'}"
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-6 bg-primary/5 border-primary/20 space-y-3">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+            <Info size={16} /> AI Commentary
+          </h3>
+          <p className="text-sm font-medium italic text-text-primary leading-relaxed">
+            {insights.commentary || "The AI is currently analyzing the latest ball-by-ball data to provide a professional update."}
+          </p>
         </div>
       </div>
 

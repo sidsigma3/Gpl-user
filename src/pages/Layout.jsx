@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Trophy, Download, X } from 'lucide-react'
 import TopNav from '../components/TopNav'
 import BottomTabNav from '../components/BottomTabNav'
+import SeasonSelector from '../components/SeasonSelector'
 
 export default function Layout() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
@@ -56,13 +57,14 @@ export default function Layout() {
       <header className="md:hidden sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-white/5 h-20 flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
            <div className="w-12 h-12 bg-gradient-to-br from-white/10 to-transparent rounded-xl flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
-             <img src="https://media.cricheroes.in/tournament_logo/1777186363265_5ID8kvwSWX8f.jpg" className="w-full h-full object-contain p-0.5" />
+             <img src="/logo.png" className="w-full h-full object-contain p-0.5" />
            </div>
            <div className="flex flex-col">
              <span className="font-black text-xl tracking-tighter leading-none text-text-primary">GPL <span className="text-accent">2026</span></span>
              <span className="text-[8px] font-bold text-accent/80 uppercase tracking-[0.2em]">Official App</span>
            </div>
         </div>
+        <SeasonSelector />
       </header>
 
       {/* Main Content Area */}

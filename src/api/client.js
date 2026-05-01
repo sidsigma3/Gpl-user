@@ -51,4 +51,9 @@ export const getTournaments = async () => {
   return response.data;
 };
 
+export const getMatchInsights = async (id) => {
+  const response = await client.get(`/ai/match-insight/${id}`);
+  return response.data;
+};
+
 export default client;

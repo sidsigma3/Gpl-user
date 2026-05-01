@@ -5,6 +5,8 @@ import Matches from './pages/Matches'
 import MatchDetail from './pages/MatchDetail'
 import TeamDetail from './pages/TeamDetail'
 import Standings from './pages/Standings'
+import News from './pages/News'
+import Gallery from './pages/Gallery'
 import Vote from './pages/Vote'
 
 function App() {
@@ -17,9 +19,9 @@ function App() {
           <Route path="matches/:id" element={<MatchDetail />} />
           <Route path="standings" element={<Standings />} />
           <Route path="teams/:id" element={<TeamDetail />} />
-          <Route path="players" element={<div>Players Page (TBD)</div>} />
+          <Route path="gallery" element={<Gallery />} />
+          <Route path="news" element={<News />} />
           <Route path="vote" element={<Vote />} />
-          <Route path="more" element={<div>More Page (TBD)</div>} />
         </Route>
       </Routes>
     </Router>

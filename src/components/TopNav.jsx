@@ -6,6 +6,8 @@ const tabs = [
   { name: 'Home', path: '/' },
   { name: 'Schedule', path: '/matches' },
   { name: 'Rankings', path: '/standings' },
+  { name: 'Gallery', path: '/gallery' },
+  { name: 'News', path: '/news' },
   { name: 'Fan Vote', path: '/vote' },
 ]
 
@@ -18,7 +20,7 @@ export default function TopNav() {
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-4 group">
             <div className="w-14 h-14 bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 overflow-hidden border border-white/10">
-              <img src="https://media.cricheroes.in/tournament_logo/1777186363265_5ID8kvwSWX8f.jpg" alt="GPL Logo" className="w-full h-full object-contain p-1" />
+              <img src="/logo.png" alt="GPL Logo" className="w-full h-full object-contain p-1" />
             </div>
             <div className="flex flex-col">
               <span className="font-black text-2xl tracking-tighter leading-none bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">GPL <span className="text-accent">2026</span></span>

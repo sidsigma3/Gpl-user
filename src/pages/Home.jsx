@@ -1,4 +1,4 @@
-import { Trophy, Clock, Bell, Share2, ArrowRight } from 'lucide-react'
+import { Trophy, Clock, Bell, Share2, ArrowRight, Image as ImageIcon } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { getMatches, getLeaderboard, getTeams } from '../api/client'
 import { Link, useNavigate } from 'react-router-dom'
@@ -243,15 +243,45 @@ export default function Home() {
 
           {/* News Snippet */}
           <section className="space-y-4">
-            <h3 className="text-lg font-black italic uppercase tracking-wider flex items-center gap-2 text-primary">
-              <Bell size={20} /> Live News
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black italic uppercase tracking-wider flex items-center gap-2 text-primary">
+                <Bell size={20} /> Latest Updates
+              </h3>
+              <Link to="/news" className="text-[10px] font-black uppercase text-accent hover:underline">View All</Link>
+            </div>
             <div className="space-y-3">
-              {announcements.map((news) => (
-                <div key={news.id} className="p-4 bg-surface/20 hover:bg-surface/60 rounded-2xl border border-white/5 transition-all flex flex-col gap-1 group cursor-pointer">
-                  <div className="font-bold text-sm group-hover:text-primary transition-colors">{news.title}</div>
-                  <div className="text-[10px] text-text-muted font-bold uppercase">{news.time}</div>
-                </div>
+              {[
+                { id: 1, title: "Tournament Schedule Finalized", time: "2h ago", type: "Official" },
+                { id: 2, title: "Player Registration Extended", time: "1d ago", type: "Admin" }
+              ].map((news) => (
+                <Link key={news.id} to="/news" className="block p-4 bg-surface/50 border border-white/5 rounded-2xl hover:border-primary/40 transition-all group">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[8px] font-black uppercase px-2 py-0.5 bg-primary/20 text-primary rounded-md tracking-widest">{news.type}</span>
+                    <span className="text-[9px] font-bold text-text-muted">{news.time}</span>
+                  </div>
+                  <div className="text-sm font-black text-text-primary group-hover:text-primary transition-colors">{news.title}</div>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* Gallery Preview */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black italic uppercase tracking-wider flex items-center gap-2 text-accent">
+                <ImageIcon size={20} /> Gallery
+              </h3>
+              <Link to="/gallery" className="text-[10px] font-black uppercase text-accent hover:underline">View All</Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600",
+                "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=600"
+              ].map((img, i) => (
+                <Link key={i} to="/gallery" className="relative aspect-square rounded-2xl overflow-hidden border border-white/5 shadow-xl group">
+                  <img src={img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </Link>
               ))}
             </div>
           </section>

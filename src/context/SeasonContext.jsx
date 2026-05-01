@@ -18,7 +18,7 @@ export const SeasonProvider = ({ children }) => {
           
           // Check localStorage for saved preference
           const savedId = localStorage.getItem('gpl_active_season');
-          const savedSeason = data.find(s => s.id === savedId);
+          const savedSeason = data.find(s => String(s.id) === String(savedId));
           
           // Default to the active season or the most recent one
           const defaultSeason = savedSeason || data.find(s => s.is_active) || data[0];
