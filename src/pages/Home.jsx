@@ -9,6 +9,8 @@ const announcements = [
 ]
 
 import { useSeason } from '../context/SeasonContext'
+import PwaPrompt from '../components/PwaPrompt'
+
 
 export default function Home() {
   const navigate = useNavigate()
@@ -287,6 +289,9 @@ export default function Home() {
           </section>
         </div>
       </div>
+      
+      {/* PWA Install Prompt */}
+      <PwaPrompt />
     </div>
   )
 }
