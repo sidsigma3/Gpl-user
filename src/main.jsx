@@ -5,6 +5,10 @@ import App from './App.jsx'
 import './index.css'
 
 import { SeasonProvider } from './context/SeasonContext.jsx'
+import { registerSW } from 'virtual:pwa-register'
+
+// Register the service worker
+registerSW({ immediate: true })
 
 const queryClient = new QueryClient({
   defaultOptions: {
