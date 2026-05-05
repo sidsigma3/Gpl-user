@@ -1,7 +1,7 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getMatchDetails, submitVote, getVoteCounts, getMatchInsights } from '../api/client'
-import { ArrowLeft, Trophy, Info, Users, BarChart3, ChevronDown, ChevronUp, Heart, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Trophy, Info, Users, BarChart3, ChevronDown, ChevronUp, Heart, CheckCircle2, MessageSquare } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 export default function MatchDetail() {
@@ -29,7 +29,7 @@ export default function MatchDetail() {
     queryFn: () => getMatchDetails(id),
     refetchInterval: (query) => {
       const status = query.state.data?.data?.summary?.summaryData?.data?.status
-      return status === 'live' ? 30_000 : false
+      return status === 'live' ? 15_000 : false
     },
   })
 
@@ -57,6 +57,18 @@ export default function MatchDetail() {
   const scorecard = details?.scorecard?.scorecard || []
   const votes = voteRes?.data || []
   const insights = insightsRes || {}
+
+  // Commentary feed: prefer the dedicated commentary tab, fall back to whatever
+  // miniScorecard the live/scorecard tab carries. commentary_with_extended_summary
+  // mixes ball-by-ball entries with end-of-over summaries — best for display.
+  const commentarySource =
+    details?.commentary?.miniScorecard?.data ||
+    details?.scorecard?.miniScorecard?.data ||
+    summary ||
+    {}
+  const commentaryFeed =
+    commentarySource.commentary_with_extended_summary ||
+    (commentarySource.commentary || []).map(b => ({ type: 'ball', data: b }))
 
   if (isLoading) {
     return (
@@ -225,6 +237,7 @@ export default function MatchDetail() {
         {[
           { id: 'summary', label: 'Summary', icon: BarChart3 },
           { id: 'scorecard', label: 'Scorecard', icon: Trophy },
+          { id: 'commentary', label: 'Commentary', icon: MessageSquare },
           { id: 'squads', label: 'Squads', icon: Users },
           { id: 'vote', label: 'Fan Vote', icon: Heart },
         ].map((tab) => (
@@ -376,6 +389,79 @@ export default function MatchDetail() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {activeTab === 'commentary' && (
+          <div className="space-y-3 animate-in fade-in duration-300">
+            {commentaryFeed.length === 0 ? (
+              <div className="card p-12 text-center text-text-muted italic">
+                No ball-by-ball commentary available yet.
+              </div>
+            ) : (
+              commentaryFeed.map((entry, idx) => {
+                if (entry.type === 'over') {
+                  const o = entry.data
+                  return (
+                    <div
+                      key={`over-${o.match_over_summary_id || idx}`}
+                      className="card p-4 border-accent/20 bg-accent/5"
+                    >
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-accent/20 text-accent flex items-center justify-center font-black italic">
+                            {o.over}
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-black uppercase tracking-widest text-accent">End of Over {o.over}</div>
+                            <div className="font-black text-lg">{o.score} <span className="text-text-muted text-xs font-bold">• {o.run} runs{o.wicket ? `, ${o.wicket} wkt` : ''}</span></div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] font-black uppercase tracking-widest text-text-muted">Run Rate</div>
+                          <div className="font-black text-primary">{o.run_rate}</div>
+                        </div>
+                      </div>
+                      {o.over_balls && (
+                        <div className="mt-3 pt-3 border-t border-accent/10 text-[11px] font-mono text-text-muted tracking-wider">
+                          {o.over_balls.trim()}
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+                const b = entry.data
+                if (!b) return null
+                const isWicket = b.is_out === 1
+                const isBoundary = b.is_boundry === 1
+                const isExtra = !!b.extra_type_code
+                return (
+                  <div
+                    key={`ball-${b.ball_id || idx}`}
+                    className={`card p-4 flex items-start gap-4 border-white/5 ${isWicket ? 'bg-red-500/5 border-red-500/20' : isBoundary ? 'bg-primary/5 border-primary/20' : ''}`}
+                  >
+                    <div className={`shrink-0 w-12 h-12 rounded-xl flex flex-col items-center justify-center font-black text-[10px] ${
+                      isWicket ? 'bg-red-500 text-white' :
+                      b.run === 6 ? 'bg-accent text-background' :
+                      b.run === 4 ? 'bg-primary text-white' :
+                      isExtra ? 'bg-yellow-500/30 text-yellow-200' :
+                      'bg-gray-800 text-text-muted'
+                    }`}>
+                      <div className="text-base leading-none">
+                        {isWicket ? 'W' : isExtra ? b.extra_type_code : b.run}
+                      </div>
+                      <div className="text-[9px] opacity-70 mt-0.5">{b.ball}</div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-text-primary">{b.commentary}</div>
+                      {b.out_how && (
+                        <div className="text-[11px] font-bold text-red-400 mt-1 uppercase tracking-wider">{b.out_how}</div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </div>
         )}
 
