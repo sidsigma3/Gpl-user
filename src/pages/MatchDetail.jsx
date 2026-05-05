@@ -26,7 +26,11 @@ export default function MatchDetail() {
 
   const { data: detailsRes, isLoading } = useQuery({
     queryKey: ['match-details', id],
-    queryFn: () => getMatchDetails(id)
+    queryFn: () => getMatchDetails(id),
+    refetchInterval: (query) => {
+      const status = query.state.data?.data?.summary?.summaryData?.data?.status
+      return status === 'live' ? 30_000 : false
+    },
   })
 
   const { data: voteRes } = useQuery({

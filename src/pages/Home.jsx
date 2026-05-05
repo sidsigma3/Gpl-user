@@ -19,7 +19,8 @@ export default function Home() {
   const { data: matchRes, isLoading: matchesLoading } = useQuery({
     queryKey: ['matches', activeSeason?.id],
     queryFn: () => getMatches(activeSeason?.id),
-    enabled: !!activeSeason
+    enabled: !!activeSeason,
+    refetchInterval: 60_000,
   })
 
   const { data: leadRes, isLoading: leadLoading } = useQuery({
@@ -63,8 +64,16 @@ export default function Home() {
     return acc
   }, { runs: 0, wickets: 0 })
 
-  // Get latest match
-  const latestMatch = matches[0]?.data
+  // Featured match: prefer currently-live, else most-recent past, else first available
+  const liveRow = matches.find(m => m.data?.status === 'live')
+  const lastPastRow = liveRow
+    ? null
+    : [...matches]
+        .filter(m => m.data?.status === 'past')
+        .sort((a, b) => new Date(b.data?.match_start_time || 0) - new Date(a.data?.match_start_time || 0))[0]
+  const featuredRow = liveRow || lastPastRow || matches[0]
+  const latestMatch = featuredRow?.data
+  const isLive = latestMatch?.status === 'live'
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -113,7 +122,12 @@ export default function Home() {
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-black italic uppercase tracking-wider flex items-center gap-2 text-primary">
-              <span className="w-8 h-1 bg-primary rounded-full" /> Latest Match
+              <span className="w-8 h-1 bg-primary rounded-full" /> {isLive ? 'Live Now' : 'Latest Match'}
+              {isLive && (
+                <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/40 text-[10px] font-black uppercase tracking-widest text-red-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Live
+                </span>
+              )}
             </h3>
             <Link to="/matches" className="text-xs font-bold text-accent uppercase flex items-center gap-1 hover:gap-2 transition-all">
               Full Schedule <ArrowRight size={14} />
@@ -166,8 +180,12 @@ export default function Home() {
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-gray-800 text-center">
-                  <div className="text-accent font-black italic uppercase tracking-widest text-sm">
-                    {latestMatch.match_result === 'Resulted' ? (latestMatch.match_summary?.summary || latestMatch.win_by) : 'Match Scheduled'}
+                  <div className={`font-black italic uppercase tracking-widest text-sm ${isLive ? 'text-red-400' : 'text-accent'}`}>
+                    {isLive
+                      ? `Live • ${latestMatch.toss_details || 'In Progress'}`
+                      : latestMatch.match_result === 'Resulted'
+                        ? (latestMatch.match_summary?.summary || latestMatch.win_by)
+                        : 'Match Scheduled'}
                   </div>
                 </div>
               </div>
