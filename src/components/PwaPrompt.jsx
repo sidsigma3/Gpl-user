@@ -53,10 +53,15 @@ export default function PwaPrompt() {
           <X size={16} />
         </button>
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-            <img src="/logo.png" alt="GPL Logo" className="w-8 h-8 object-contain" />
+          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shrink-0 overflow-hidden shadow-lg">
+            <img
+              src="/icons/manifest-icon-192.maskable.png"
+              alt="GPL Logo"
+              className="w-full h-full object-cover"
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
+            />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="font-black italic uppercase tracking-wider text-sm mb-1">Install GPL App</h3>
             <p className="text-xs text-white/80 leading-relaxed font-medium">Add the Govindpally Premier League app to your home screen for a better experience!</p>
           </div>

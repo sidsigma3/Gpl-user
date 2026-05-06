@@ -92,38 +92,38 @@ export default function Matches() {
                       <Share2 size={16} className="text-text-muted hover:text-accent cursor-pointer" />
                     </div>
 
-                    <div className="flex items-center justify-between gap-4">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); navigate(`/teams/${m.team_a_id}`) }}
-                        className="flex-1 flex items-center gap-3 group/team text-left hover:bg-white/5 p-2 rounded-xl transition-all active:scale-95"
-                      >
-                        <div className="w-12 h-12 rounded-lg bg-gray-900 border border-white/5 flex items-center justify-center overflow-hidden shrink-0 group-hover/team:border-primary transition-colors">
+                    {/* Whole row click → match detail. Only the team logo
+                        opens the team profile (small tap target). */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 flex items-center gap-3 min-w-0">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/teams/${m.team_a_id}`) }}
+                          aria-label={`Open ${m.team_a} profile`}
+                          className="w-12 h-12 rounded-lg bg-gray-900 border border-white/5 flex items-center justify-center overflow-hidden shrink-0 hover:border-primary hover:scale-105 active:scale-95 transition-all"
+                        >
                            {m.team_a_logo ? <img src={m.team_a_logo.startsWith('http') ? m.team_a_logo : `https://media.cricheroes.in/team_logo/${m.team_a_logo}`} alt="" className="w-full h-full object-cover" /> : <Trophy size={16} className="text-text-muted" />}
+                        </button>
+                        <div className="min-w-0">
+                          <div className="text-base md:text-lg font-black uppercase tracking-tight truncate">{m.team_a}</div>
+                          <div className="text-xl md:text-2xl font-black text-text-muted mt-0.5 tabular-nums">{m.team_a_summary || '-'}</div>
                         </div>
-                        <div>
-                          <div className="text-lg font-black group-hover/team:text-primary transition-colors">
-                            {m.team_a}
-                          </div>
-                          <div className="text-2xl font-black text-text-muted mt-1">{m.team_a_summary || '-'}</div>
-                        </div>
-                      </button>
+                      </div>
 
-                      <div className="text-xs font-black italic text-accent mx-4">VS</div>
+                      <div className="text-xs font-black italic text-accent shrink-0">VS</div>
 
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); navigate(`/teams/${m.team_b_id}`) }}
-                        className="flex-1 flex items-center justify-end gap-3 group/team text-right hover:bg-white/5 p-2 rounded-xl transition-all active:scale-95"
-                      >
-                        <div>
-                          <div className="text-lg font-black group-hover/team:text-primary transition-colors">
-                            {m.team_b}
-                          </div>
-                          <div className="text-2xl font-black text-text-muted mt-1">{m.team_b_summary || '-'}</div>
+                      <div className="flex-1 flex items-center justify-end gap-3 min-w-0">
+                        <div className="min-w-0 text-right">
+                          <div className="text-base md:text-lg font-black uppercase tracking-tight truncate">{m.team_b}</div>
+                          <div className="text-xl md:text-2xl font-black text-text-muted mt-0.5 tabular-nums">{m.team_b_summary || '-'}</div>
                         </div>
-                        <div className="w-12 h-12 rounded-lg bg-gray-900 border border-white/5 flex items-center justify-center overflow-hidden shrink-0 group-hover/team:border-primary transition-colors">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/teams/${m.team_b_id}`) }}
+                          aria-label={`Open ${m.team_b} profile`}
+                          className="w-12 h-12 rounded-lg bg-gray-900 border border-white/5 flex items-center justify-center overflow-hidden shrink-0 hover:border-primary hover:scale-105 active:scale-95 transition-all"
+                        >
                            {m.team_b_logo ? <img src={m.team_b_logo.startsWith('http') ? m.team_b_logo : `https://media.cricheroes.in/team_logo/${m.team_b_logo}`} alt="" className="w-full h-full object-cover" /> : <Trophy size={16} className="text-text-muted" />}
-                        </div>
-                      </button>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="mt-6 pt-4 border-t border-gray-800/50">

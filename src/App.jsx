@@ -8,6 +8,7 @@ import Standings from './pages/Standings'
 import News from './pages/News'
 import Gallery from './pages/Gallery'
 import Vote from './pages/Vote'
+import Stats from './pages/Stats'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="gallery" element={<Gallery />} />
           <Route path="news" element={<News />} />
           <Route path="vote" element={<Vote />} />
+          <Route path="stats" element={<Stats />} />
         </Route>
       </Routes>
     </Router>

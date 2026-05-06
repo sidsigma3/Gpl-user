@@ -56,4 +56,9 @@ export const getMatchInsights = async (id) => {
   return response.data;
 };
 
+export const getStats = async (tournamentId) => {
+  const response = await client.get('/stats', { params: { tournamentId } });
+  return response.data;
+};
+
 export default client;

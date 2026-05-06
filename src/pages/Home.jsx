@@ -1,6 +1,6 @@
-import { Trophy, Clock, Bell, Share2, ArrowRight, Image as ImageIcon } from 'lucide-react'
+import { Trophy, Clock, Bell, Share2, ArrowRight, Image as ImageIcon, Flame, Target } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { getMatches, getTeams } from '../api/client'
+import { getMatches, getTeams, getStats } from '../api/client'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useSeason } from '../context/SeasonContext'
@@ -24,6 +24,17 @@ export default function Home() {
     queryFn: () => getTeams(activeSeason?.id),
     enabled: !!activeSeason
   })
+
+  const { data: statsRes, isLoading: statsLoading } = useQuery({
+    queryKey: ['stats', activeSeason?.id],
+    queryFn: () => getStats(activeSeason?.id),
+    enabled: !!activeSeason,
+    refetchInterval: 5 * 60_000,
+  })
+
+  const topRunScorer = statsRes?.data?.most_runs?.[0]
+  const topWicketTaker = statsRes?.data?.most_wickets?.[0]
+  const topBoundaries = statsRes?.data?.most_boundaries?.[0]
 
   const matches = matchRes?.data || []
   const teams = teamRes?.data || []
@@ -233,6 +244,77 @@ export default function Home() {
               </Link>
             </div>
           </div>
+
+          {/* Top Performers */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black italic uppercase tracking-wider flex items-center gap-2 text-primary">
+                <Flame size={20} /> Top Performers
+              </h3>
+              <Link to="/stats" className="text-[10px] font-black uppercase text-accent hover:underline">All Stats</Link>
+            </div>
+            {statsLoading ? (
+              <div className="space-y-2">
+                {[1,2,3].map(i => <div key={i} className="card h-20 animate-pulse" />)}
+              </div>
+            ) : (topRunScorer || topWicketTaker || topBoundaries) ? (
+              <div className="space-y-3">
+                {topRunScorer && (
+                  <div className="card p-4 border-primary/20 bg-primary/5 flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gray-900 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                      {topRunScorer.photo ? <img src={topRunScorer.photo} alt="" className="w-full h-full object-cover" /> : <Trophy size={20} className="text-primary/30" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[9px] font-black uppercase tracking-widest text-primary">Most Runs</div>
+                      <div className="font-black uppercase text-sm truncate">{topRunScorer.name}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-black text-2xl text-primary tabular-nums">{topRunScorer.runs}</div>
+                      <div className="text-[9px] font-bold text-text-muted uppercase">{topRunScorer.innings} inn</div>
+                    </div>
+                  </div>
+                )}
+                {topWicketTaker && (
+                  <div className="card p-4 border-red-500/20 bg-red-500/5 flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gray-900 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                      {topWicketTaker.photo ? <img src={topWicketTaker.photo} alt="" className="w-full h-full object-cover" /> : <Target size={20} className="text-red-400/40" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[9px] font-black uppercase tracking-widest text-red-400">Most Wickets</div>
+                      <div className="font-black uppercase text-sm truncate">{topWicketTaker.name}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-black text-2xl text-red-400 tabular-nums">{topWicketTaker.wickets}</div>
+                      <div className="text-[9px] font-bold text-text-muted uppercase tabular-nums">Eco {topWicketTaker.economy}</div>
+                    </div>
+                  </div>
+                )}
+                {topBoundaries && (
+                  <div className="card p-4 border-accent/20 bg-accent/5 flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gray-900 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                      {topBoundaries.photo ? <img src={topBoundaries.photo} alt="" className="w-full h-full object-cover" /> : <Flame size={20} className="text-accent/40" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[9px] font-black uppercase tracking-widest text-accent">Most Boundaries</div>
+                      <div className="font-black uppercase text-sm truncate">{topBoundaries.name}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-black text-xl text-accent tabular-nums">
+                        <span className="text-primary">{topBoundaries.fours}</span>
+                        <span className="text-text-muted text-sm">×4 </span>
+                        <span>{topBoundaries.sixes}</span>
+                        <span className="text-text-muted text-sm">×6</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="card p-6 text-center text-[10px] font-bold uppercase tracking-widest text-text-muted italic">
+                Stats appear once matches are scored
+              </div>
+            )}
+          </section>
 
           {/* News Snippet */}
           <section className="space-y-4">
