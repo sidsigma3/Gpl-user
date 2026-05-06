@@ -1,6 +1,7 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getMatchDetails, submitVote, getVoteCounts, getMatchInsights } from '../api/client'
+import { getMatchDetails, submitVote, getVoteCounts, getMatchInsights, getTeams } from '../api/client'
+import { useSeason } from '../context/SeasonContext'
 import { ArrowLeft, Trophy, Info, Users, BarChart3, ChevronDown, ChevronUp, Heart, CheckCircle2, MessageSquare } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -11,6 +12,7 @@ export default function MatchDetail() {
   const [expandedInning, setExpandedInning] = useState(0)
   const [showToast, setShowToast] = useState(false)
   const queryClient = useQueryClient()
+  const { activeSeason } = useSeason()
 
   useEffect(() => {
     if (showToast) {
@@ -44,6 +46,15 @@ export default function MatchDetail() {
     refetchInterval: 60000 // Refetch every minute
   })
 
+  // Full team rosters for the active season — used by both Squads and Vote tabs
+  // so they show every squad member, not just the players who have already
+  // batted/bowled in this match.
+  const { data: teamsRes } = useQuery({
+    queryKey: ['teams', activeSeason?.id],
+    queryFn: () => getTeams(activeSeason?.id),
+    enabled: !!activeSeason,
+  })
+
   const voteMutation = useMutation({
     mutationFn: ({ playerId, playerName }) => submitVote(id, playerId, playerName),
     onSuccess: () => {
@@ -69,6 +80,37 @@ export default function MatchDetail() {
   const commentaryFeed =
     commentarySource.commentary_with_extended_summary ||
     (commentarySource.commentary || []).map(b => ({ type: 'ball', data: b }))
+
+  // Build the two squads from the season-level team cache. Falls back to the
+  // players who have batted/bowled in this match if a team has no roster yet.
+  const teamsList = teamsRes?.data || []
+  const buildSquad = (teamSummary) => {
+    if (!teamSummary?.id) return []
+    const cached = teamsList.find(t => String(t.id) === String(teamSummary.id))
+    const roster = cached?.data?.players || []
+    if (roster.length > 0) {
+      return roster.map(p => ({
+        id: p.player_id || p.id,
+        name: p.player_name || p.name,
+        photo: p.profile_photo,
+      }))
+    }
+    // Fallback: derive from match scorecard innings
+    const inningForTeam = scorecard.find(i => String(i.team_id) === String(teamSummary.id))
+    const fromMatch = [
+      ...(inningForTeam?.batting || []),
+      ...(inningForTeam?.bowling || []),
+    ]
+    const seen = new Set()
+    return fromMatch.reduce((acc, p) => {
+      if (!p?.player_id || seen.has(p.player_id)) return acc
+      seen.add(p.player_id)
+      acc.push({ id: p.player_id, name: p.name, photo: p.profile_photo })
+      return acc
+    }, [])
+  }
+  const teamASquad = buildSquad(summary?.team_a)
+  const teamBSquad = buildSquad(summary?.team_b)
 
   if (isLoading) {
     return (
@@ -103,20 +145,6 @@ export default function MatchDetail() {
     )
   }
 
-  // Extract all players from scorecard for voting
-  const allPlayers = scorecard.reduce((acc, inning) => {
-    const players = [...inning.batting, ...inning.bowling].map(p => ({
-      id: p.player_id,
-      name: p.name,
-      team: inning.teamName
-    }))
-    // Filter out duplicates
-    players.forEach(p => {
-      if (!acc.find(prev => prev.id === p.id)) acc.push(p)
-    })
-    return acc
-  }, [])
-
   // Helper to get team logo by ID
   const getTeamLogo = (teamId) => {
     if (String(summary.team_a_id) === String(teamId)) return summary.team_a_logo
@@ -148,39 +176,39 @@ export default function MatchDetail() {
 
       {/* Main Scorecard Banner */}
       <div className="card relative overflow-hidden border-primary/20 bg-gradient-to-br from-surface to-background shadow-2xl">
-        <div className="p-6 md:p-10 space-y-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="p-4 md:p-10 space-y-6 md:space-y-8">
+          <div className="flex flex-row items-center justify-between gap-2 md:gap-8">
             {/* Team A */}
-            <Link to={summary?.team_a?.id ? `/teams/${summary.team_a.id}` : '#'} className="flex flex-col items-center gap-4 text-center w-full md:w-1/3 group transition-transform hover:scale-105 active:scale-95 cursor-pointer">
-              <div className="w-24 h-24 rounded-3xl bg-gray-900 border-4 border-surface shadow-2xl overflow-hidden flex items-center justify-center p-2 group-hover:border-primary transition-all">
-                {summary?.team_a?.logo ? <img src={summary.team_a.logo} alt="" className="w-full h-full object-contain" /> : <Trophy size={32} className="text-text-muted" />}
+            <Link to={summary?.team_a?.id ? `/teams/${summary.team_a.id}` : '#'} className="flex flex-col items-center gap-2 md:gap-4 text-center flex-1 min-w-0 group transition-transform hover:scale-105 active:scale-95 cursor-pointer">
+              <div className="w-14 h-14 md:w-24 md:h-24 rounded-2xl md:rounded-3xl bg-gray-900 border-2 md:border-4 border-surface shadow-2xl overflow-hidden flex items-center justify-center p-1.5 md:p-2 group-hover:border-primary transition-all shrink-0">
+                {summary?.team_a?.logo ? <img src={summary.team_a.logo} alt="" className="w-full h-full object-contain" /> : <Trophy size={24} className="text-text-muted" />}
               </div>
-              <div className="font-black text-xl group-hover:text-primary transition-colors">{summary?.team_a?.name}</div>
-              <div className="text-4xl font-black text-primary">{summary?.team_a?.summary || '0/0'}</div>
-              <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{summary?.team_a?.innings?.[0]?.summary?.over}</div>
+              <div className="font-black text-xs md:text-xl group-hover:text-primary transition-colors uppercase tracking-tight w-full truncate">{summary?.team_a?.name}</div>
+              <div className="text-xl md:text-4xl font-black text-primary tabular-nums">{summary?.team_a?.summary || '0/0'}</div>
+              <div className="text-[9px] md:text-[10px] font-bold text-text-muted uppercase tracking-widest">{summary?.team_a?.innings?.[0]?.summary?.over}</div>
             </Link>
 
             {/* VS */}
-            <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-accent text-background rounded-full flex items-center justify-center font-black italic shadow-lg -rotate-12 z-10">VS</div>
-              <div className="h-px w-32 bg-gradient-to-r from-transparent via-gray-800 to-transparent my-4" />
-              <div className="text-[10px] font-black text-accent uppercase tracking-[0.2em]">{summary?.tournament_round_name}</div>
+            <div className="flex flex-col items-center shrink-0">
+              <div className="w-9 h-9 md:w-12 md:h-12 bg-accent text-background rounded-full flex items-center justify-center font-black italic text-xs md:text-base shadow-lg -rotate-12 z-10">VS</div>
+              <div className="h-px w-16 md:w-32 bg-gradient-to-r from-transparent via-gray-800 to-transparent my-3 md:my-4" />
+              <div className="text-[9px] md:text-[10px] font-black text-accent uppercase tracking-[0.2em] text-center max-w-[80px] md:max-w-none truncate">{summary?.tournament_round_name}</div>
             </div>
 
             {/* Team B */}
-            <Link to={summary?.team_b?.id ? `/teams/${summary.team_b.id}` : '#'} className="flex flex-col items-center gap-4 text-center w-full md:w-1/3 group transition-transform hover:scale-105 active:scale-95 cursor-pointer">
-              <div className="w-24 h-24 rounded-3xl bg-gray-900 border-4 border-surface shadow-2xl overflow-hidden flex items-center justify-center p-2 group-hover:border-primary transition-all">
-                {summary?.team_b?.logo ? <img src={summary.team_b.logo} alt="" className="w-full h-full object-contain" /> : <Trophy size={32} className="text-text-muted" />}
+            <Link to={summary?.team_b?.id ? `/teams/${summary.team_b.id}` : '#'} className="flex flex-col items-center gap-2 md:gap-4 text-center flex-1 min-w-0 group transition-transform hover:scale-105 active:scale-95 cursor-pointer">
+              <div className="w-14 h-14 md:w-24 md:h-24 rounded-2xl md:rounded-3xl bg-gray-900 border-2 md:border-4 border-surface shadow-2xl overflow-hidden flex items-center justify-center p-1.5 md:p-2 group-hover:border-primary transition-all shrink-0">
+                {summary?.team_b?.logo ? <img src={summary.team_b.logo} alt="" className="w-full h-full object-contain" /> : <Trophy size={24} className="text-text-muted" />}
               </div>
-              <div className="font-black text-xl group-hover:text-primary transition-colors">{summary?.team_b?.name}</div>
-              <div className="text-4xl font-black text-primary">{summary?.team_b?.summary || '0/0'}</div>
-              <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{summary?.team_b?.innings?.[0]?.summary?.over}</div>
+              <div className="font-black text-xs md:text-xl group-hover:text-primary transition-colors uppercase tracking-tight w-full truncate">{summary?.team_b?.name}</div>
+              <div className="text-xl md:text-4xl font-black text-primary tabular-nums">{summary?.team_b?.summary || '0/0'}</div>
+              <div className="text-[9px] md:text-[10px] font-bold text-text-muted uppercase tracking-widest">{summary?.team_b?.innings?.[0]?.summary?.over}</div>
             </Link>
           </div>
 
-          <div className="pt-6 border-t border-gray-800 text-center">
-            <div className="text-accent font-black italic uppercase tracking-widest text-lg">
-              {summary?.winning_team ? `${summary.winning_team} won by ${summary.win_by}` : 'Match in Progress / TBD'}
+          <div className="pt-4 md:pt-6 border-t border-gray-800 text-center">
+            <div className="text-accent font-black italic uppercase tracking-widest text-sm md:text-lg">
+              {summary?.winning_team ? `${summary.winning_team} won by ${summary.win_by}` : 'Match in Progress'}
             </div>
             <div className="text-[10px] font-bold text-text-muted mt-2 uppercase tracking-widest flex items-center justify-center gap-2">
               <Info size={12} /> {summary.toss_details}
@@ -467,25 +495,44 @@ export default function MatchDetail() {
 
         {activeTab === 'squads' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {scorecard.map((inning, idx) => (
-              <div key={idx} className="card p-6 border-white/5 space-y-4">
+            {[
+              { team: summary?.team_a, squad: teamASquad },
+              { team: summary?.team_b, squad: teamBSquad },
+            ].map(({ team, squad }, idx) => (
+              <div key={idx} className="card p-5 border-white/5 space-y-4">
                 <div className="flex items-center gap-3 border-b border-gray-800 pb-3">
-                  <div className="w-10 h-10 rounded-lg bg-gray-900 border border-white/10 flex items-center justify-center overflow-hidden">
-                    {getTeamLogo(inning.team_id) ? (
-                      <img src={`https://media.cricheroes.in/team_logo/${getTeamLogo(inning.team_id)}`} alt="" className="w-full h-full object-cover" />
+                  <div className="w-10 h-10 rounded-lg bg-gray-900 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                    {team?.logo ? (
+                      <img src={team.logo} alt="" className="w-full h-full object-contain" />
                     ) : (
                       <Users className="text-primary" size={20} />
                     )}
                   </div>
-                  <div className="font-black italic uppercase">{inning.teamName}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-black italic uppercase truncate">{team?.name}</div>
+                    <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{squad.length} player{squad.length === 1 ? '' : 's'}</div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[...new Set([...inning.batting, ...inning.bowling].map(p => p.name))].map((name, pIdx) => (
-                    <div key={pIdx} className="text-xs font-bold p-2 bg-white/5 rounded border border-white/5">
-                      {name}
-                    </div>
-                  ))}
-                </div>
+                {squad.length === 0 ? (
+                  <div className="p-6 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest italic">
+                    Squad not synced yet
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2">
+                    {squad.map((p) => (
+                      <div key={p.id} className="flex items-center gap-3 p-2 bg-white/5 rounded-lg border border-white/5">
+                        <div className="w-8 h-8 rounded-lg bg-gray-900 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                          {p.photo ? (
+                            <img src={p.photo} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Users size={14} className="text-text-muted" />
+                          )}
+                        </div>
+                        <div className="text-xs font-bold uppercase tracking-tight truncate">{p.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -512,25 +559,39 @@ export default function MatchDetail() {
 
              {/* Voting Grid */}
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[summary.team_a, summary.team_b].map((team, tIdx) => (
-                  <div key={tIdx} className="space-y-4">
+                {[
+                  { team: summary.team_a, squad: teamASquad, label: 'A' },
+                  { team: summary.team_b, squad: teamBSquad, label: 'B' },
+                ].map(({ team, squad, label }) => (
+                  <div key={label} className="space-y-4">
                     <div className="flex items-center gap-2 border-b border-gray-800 pb-2">
-                       <div className="w-6 h-6 rounded bg-primary/20 flex items-center justify-center font-black text-[10px]">{tIdx === 0 ? 'A' : 'B'}</div>
-                       <div className="font-black italic uppercase text-xs text-text-muted">{team.name}</div>
+                       <div className="w-6 h-6 rounded bg-primary/20 flex items-center justify-center font-black text-[10px]">{label}</div>
+                       <div className="font-black italic uppercase text-xs text-text-muted truncate">{team.name}</div>
                     </div>
-                    <div className="grid grid-cols-1 gap-2">
-                       {allPlayers.filter(p => p.team === team.name).map((p, pIdx) => (
+                    {squad.length === 0 ? (
+                      <div className="card p-6 text-center text-[10px] font-bold text-text-muted uppercase tracking-widest italic">
+                        Squad not synced yet
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2">
+                        {squad.map((p) => (
                           <button
-                            key={pIdx}
+                            key={p.id}
                             onClick={() => voteMutation.mutate({ playerId: p.id, playerName: p.name })}
                             disabled={voteMutation.isPending}
-                            className="flex items-center justify-between p-4 card bg-surface hover:border-accent transition-all group"
+                            className="flex items-center justify-between p-3 card bg-surface hover:border-accent transition-all group"
                           >
-                             <div className="font-black uppercase text-sm group-hover:text-accent transition-colors">{p.name}</div>
-                             <Heart size={18} className="text-text-muted group-hover:text-accent transition-all" />
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-gray-900 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                                {p.photo ? <img src={p.photo} alt="" className="w-full h-full object-cover" /> : <Heart size={12} className="text-text-muted" />}
+                              </div>
+                              <div className="font-black uppercase text-sm group-hover:text-accent transition-colors truncate">{p.name}</div>
+                            </div>
+                            <Heart size={18} className="text-text-muted group-hover:text-accent transition-all shrink-0 ml-2" />
                           </button>
-                       ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
              </div>

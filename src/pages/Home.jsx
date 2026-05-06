@@ -125,45 +125,45 @@ export default function Home() {
                 <Share2 size={18} className="text-text-muted hover:text-accent cursor-pointer" />
               </div>
               
-              <div className="p-8">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+              <div className="p-4 md:p-8">
+                <div className="flex flex-row items-center justify-between gap-2 md:gap-8">
                   {/* Team A */}
-                  <div onClick={(e) => { e.preventDefault(); navigate(`/teams/${latestMatch.team_a_id}`) }} className="flex flex-col items-center gap-3 text-center w-full md:w-1/3 group/team">
-                    <div className="w-20 h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full border-4 border-surface shadow-2xl flex items-center justify-center overflow-hidden group-hover/team:border-primary transition-all">
+                  <div onClick={(e) => { e.preventDefault(); navigate(`/teams/${latestMatch.team_a_id}`) }} className="flex flex-col items-center gap-2 md:gap-3 text-center flex-1 min-w-0 group/team">
+                    <div className="w-14 h-14 md:w-20 md:h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full border-2 md:border-4 border-surface shadow-2xl flex items-center justify-center overflow-hidden group-hover/team:border-primary transition-all shrink-0">
                        {latestMatch.team_a_logo ? (
                          <img src={latestMatch.team_a_logo.startsWith('http') ? latestMatch.team_a_logo : `https://media.cricheroes.in/team_logo/${latestMatch.team_a_logo}`} alt="" className="w-full h-full object-cover" />
                        ) : (
-                         <span className="text-2xl font-black text-white">{latestMatch.team_a?.substring(0,3).toUpperCase()}</span>
+                         <span className="text-base md:text-2xl font-black text-white">{latestMatch.team_a?.substring(0,3).toUpperCase()}</span>
                        )}
                     </div>
-                    <div className="font-black text-lg group-hover/team:text-primary transition-colors">{latestMatch.team_a}</div>
-                    <div className="text-3xl font-black text-primary">{latestMatch.team_a_summary || '0/0'}</div>
+                    <div className="font-black text-xs md:text-lg group-hover/team:text-primary transition-colors uppercase tracking-tight w-full truncate">{latestMatch.team_a}</div>
+                    <div className="text-xl md:text-3xl font-black text-primary tabular-nums">{latestMatch.team_a_summary || '0/0'}</div>
                   </div>
 
                   {/* VS Divider */}
-                  <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 bg-accent text-background rounded-full flex items-center justify-center font-black italic shadow-lg -rotate-12">VS</div>
-                    <div className="text-[10px] font-bold text-text-muted mt-4 uppercase tracking-[0.2em]">
-                      {latestMatch.match_start_time ? new Date(latestMatch.match_start_time).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'TBD'}
+                  <div className="flex flex-col items-center shrink-0">
+                    <div className="w-9 h-9 md:w-10 md:h-10 bg-accent text-background rounded-full flex items-center justify-center font-black italic text-xs md:text-base shadow-lg -rotate-12">VS</div>
+                    <div className="text-[9px] md:text-[10px] font-bold text-text-muted mt-3 md:mt-4 uppercase tracking-[0.2em] text-center">
+                      {latestMatch.match_start_time ? new Date(latestMatch.match_start_time).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'TBD'}
                     </div>
                   </div>
 
                   {/* Team B */}
-                  <div onClick={(e) => { e.preventDefault(); navigate(`/teams/${latestMatch.team_b_id}`) }} className="flex flex-col items-center gap-3 text-center w-full md:w-1/3 group/team">
-                    <div className="w-20 h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full border-4 border-surface shadow-2xl flex items-center justify-center overflow-hidden group-hover/team:border-primary transition-all">
+                  <div onClick={(e) => { e.preventDefault(); navigate(`/teams/${latestMatch.team_b_id}`) }} className="flex flex-col items-center gap-2 md:gap-3 text-center flex-1 min-w-0 group/team">
+                    <div className="w-14 h-14 md:w-20 md:h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full border-2 md:border-4 border-surface shadow-2xl flex items-center justify-center overflow-hidden group-hover/team:border-primary transition-all shrink-0">
                        {latestMatch.team_b_logo ? (
                          <img src={latestMatch.team_b_logo.startsWith('http') ? latestMatch.team_b_logo : `https://media.cricheroes.in/team_logo/${latestMatch.team_b_logo}`} alt="" className="w-full h-full object-cover" />
                        ) : (
-                         <span className="text-2xl font-black text-white">{latestMatch.team_b?.substring(0,3).toUpperCase()}</span>
+                         <span className="text-base md:text-2xl font-black text-white">{latestMatch.team_b?.substring(0,3).toUpperCase()}</span>
                        )}
                     </div>
-                    <div className="font-black text-lg group-hover/team:text-primary transition-colors">{latestMatch.team_b}</div>
-                    <div className="text-3xl font-black text-primary">{latestMatch.team_b_summary || '0/0'}</div>
+                    <div className="font-black text-xs md:text-lg group-hover/team:text-primary transition-colors uppercase tracking-tight w-full truncate">{latestMatch.team_b}</div>
+                    <div className="text-xl md:text-3xl font-black text-primary tabular-nums">{latestMatch.team_b_summary || '0/0'}</div>
                   </div>
                 </div>
 
-                <div className="mt-8 pt-6 border-t border-gray-800 text-center">
-                  <div className={`font-black italic uppercase tracking-widest text-sm ${isLive ? 'text-red-400' : 'text-accent'}`}>
+                <div className="mt-4 md:mt-8 pt-4 md:pt-6 border-t border-gray-800 text-center">
+                  <div className={`font-black italic uppercase tracking-widest text-xs md:text-sm ${isLive ? 'text-red-400' : 'text-accent'}`}>
                     {isLive
                       ? `Live • ${latestMatch.toss_details || 'In Progress'}`
                       : latestMatch.match_result === 'Resulted'
