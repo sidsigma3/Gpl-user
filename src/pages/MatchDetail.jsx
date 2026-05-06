@@ -1,6 +1,6 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getMatchDetails, submitVote, getVoteCounts, getMatchInsights, getTeams } from '../api/client'
+import { getMatchDetails, submitVote, getVoteCounts, getMatchInsights, getTeams, getMatchOverrides } from '../api/client'
 import { useSeason } from '../context/SeasonContext'
 import { ArrowLeft, Trophy, Info, Users, BarChart3, ChevronDown, ChevronUp, Heart, CheckCircle2, MessageSquare } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -54,6 +54,15 @@ export default function MatchDetail() {
     queryFn: () => getTeams(activeSeason?.id),
     enabled: !!activeSeason,
   })
+
+  const { data: overridesRes } = useQuery({
+    queryKey: ['match-overrides', activeSeason?.id],
+    queryFn: () => getMatchOverrides(activeSeason?.id),
+    enabled: !!activeSeason,
+  })
+  const matchOverride = (overridesRes?.data || []).find(
+    o => String(o.match_id) === String(id),
+  )
 
   const voteMutation = useMutation({
     mutationFn: ({ playerId, playerName }) => submitVote(id, playerId, playerName),
@@ -208,8 +217,21 @@ export default function MatchDetail() {
 
           <div className="pt-4 md:pt-6 border-t border-gray-800 text-center">
             <div className="text-accent font-black italic uppercase tracking-widest text-sm md:text-lg">
-              {summary?.winning_team ? `${summary.winning_team} won by ${summary.win_by}` : 'Match in Progress'}
+              {matchOverride
+                ? matchOverride.result_type === 'win'
+                  ? `${matchOverride.winning_team_name} awarded${matchOverride.win_by ? ` by ${matchOverride.win_by}` : ''}`
+                  : matchOverride.result_type === 'tie'
+                    ? 'Match tied'
+                    : 'No result'
+                : summary?.winning_team
+                  ? `${summary.winning_team} won by ${summary.win_by}`
+                  : 'Match in Progress'}
             </div>
+            {matchOverride?.notes && (
+              <div className="text-[10px] font-bold text-accent/80 mt-1 uppercase tracking-widest">
+                {matchOverride.notes}
+              </div>
+            )}
             <div className="text-[10px] font-bold text-text-muted mt-2 uppercase tracking-widest flex items-center justify-center gap-2">
               <Info size={12} /> {summary.toss_details}
             </div>

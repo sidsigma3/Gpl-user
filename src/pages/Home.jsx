@@ -1,11 +1,11 @@
 import { Trophy, Clock, Bell, Share2, ArrowRight, Image as ImageIcon, Flame, Target } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { getMatches, getTeams, getStats } from '../api/client'
+import { getMatches, getTeams, getStats, getMatchOverrides } from '../api/client'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useSeason } from '../context/SeasonContext'
 import PwaPrompt from '../components/PwaPrompt'
-import { buildLeagueStandings, formatNRR } from '../lib/leagueStandings'
+import { buildLeagueStandings, formatNRR, indexOverrides, withOverrides } from '../lib/leagueStandings'
 
 
 export default function Home() {
@@ -32,11 +32,19 @@ export default function Home() {
     refetchInterval: 5 * 60_000,
   })
 
+  const { data: overridesRes } = useQuery({
+    queryKey: ['match-overrides', activeSeason?.id],
+    queryFn: () => getMatchOverrides(activeSeason?.id),
+    enabled: !!activeSeason,
+  })
+
   const topRunScorer = statsRes?.data?.most_runs?.[0]
   const topWicketTaker = statsRes?.data?.most_wickets?.[0]
   const topBoundaries = statsRes?.data?.most_boundaries?.[0]
+  const overridesIndex = indexOverrides(overridesRes?.data || [])
 
-  const matches = matchRes?.data || []
+  const rawMatches = matchRes?.data || []
+  const matches = withOverrides(rawMatches, overridesIndex)
   const teams = teamRes?.data || []
 
   // League standings — top 5 for the home sidebar.

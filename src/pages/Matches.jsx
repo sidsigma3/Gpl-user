@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { getMatches } from '../api/client'
-import { Clock, Trophy, MapPin, Share2 } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { getMatches, getMatchOverrides } from '../api/client'
+import { Trophy, MapPin, Share2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 import { useSeason } from '../context/SeasonContext'
+import { indexOverrides, withOverrides } from '../lib/leagueStandings'
 
 export default function Matches() {
   const navigate = useNavigate()
@@ -15,7 +16,14 @@ export default function Matches() {
     enabled: !!activeSeason
   })
 
-  const matches = matchRes?.data || []
+  const { data: overridesRes } = useQuery({
+    queryKey: ['match-overrides', activeSeason?.id],
+    queryFn: () => getMatchOverrides(activeSeason?.id),
+    enabled: !!activeSeason,
+  })
+
+  const overridesIndex = indexOverrides(overridesRes?.data || [])
+  const matches = withOverrides(matchRes?.data || [], overridesIndex)
 
   // Schedule order: live first, then upcoming sorted soonest-first, then past most-recent first.
   const sortedMatches = (() => {
@@ -58,6 +66,7 @@ export default function Matches() {
           {sortedMatches.map((item) => {
             const m = item.data
             const isLive = m.status === 'live'
+            const isOverride = !!m._override
             return (
               <div
                 key={item.id}
@@ -74,12 +83,13 @@ export default function Matches() {
                        {new Date(m.match_start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                     <div className={`mt-4 px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${
+                      isOverride ? 'bg-accent/15 border-accent/40 text-accent' :
                       isLive ? 'bg-red-500/15 border-red-500/40 text-red-400 inline-flex items-center gap-1.5' :
                       m.status === 'past' ? 'bg-surface border-gray-700 text-text-muted' :
                       'bg-surface border-gray-700 text-accent'
                     }`}>
-                      {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
-                      {m.status || 'Upcoming'}
+                      {isLive && !isOverride && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+                      {isOverride ? 'Awarded' : (m.status || 'Upcoming')}
                     </div>
                   </div>
 
@@ -128,8 +138,15 @@ export default function Matches() {
 
                     <div className="mt-6 pt-4 border-t border-gray-800/50">
                       <div className="text-xs font-medium text-text-muted italic">
-                        {m.match_result === 'Resulted' ? (
+                        {isOverride ? (
+                          <span className="text-accent font-bold uppercase tracking-tight">
+                            {m.winning_team ? `${m.winning_team} awarded` : 'Decision'}
+                            {m._override?.notes ? ` — ${m._override.notes}` : ''}
+                          </span>
+                        ) : m.match_result === 'Resulted' ? (
                           <span className="text-accent font-bold uppercase tracking-tight">{m.match_summary?.summary}</span>
+                        ) : isLive ? (
+                          'Match in progress'
                         ) : (
                           'Match has not started yet'
                         )}

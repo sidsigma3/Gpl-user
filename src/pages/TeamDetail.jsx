@@ -1,10 +1,11 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { getTeams, getMatches } from '../api/client'
+import { getTeams, getMatches, getMatchOverrides } from '../api/client'
 import { ArrowLeft, Trophy, Users, Calendar, Target, TrendingUp, Info, ArrowRight } from 'lucide-react'
 import { useEffect } from 'react'
 
 import { useSeason } from '../context/SeasonContext'
+import { indexOverrides, withOverrides } from '../lib/leagueStandings'
 
 export default function TeamDetail() {
   const navigate = useNavigate()
@@ -28,11 +29,23 @@ export default function TeamDetail() {
     refetchInterval: 60_000,
   })
 
+  const { data: overridesRes } = useQuery({
+    queryKey: ['match-overrides', activeSeason?.id],
+    queryFn: () => getMatchOverrides(activeSeason?.id),
+    enabled: !!activeSeason,
+  })
+
   const teams = teamsRes?.data || []
   const team = teams.find(t => String(t.id) === String(teamId))
 
+  // Apply overrides (e.g. abandoned-match committee decisions) before
+  // filtering and styling, so a forfeit win shows up here as a Win card
+  // and counts toward the played/won totals.
+  const overridesIndex = indexOverrides(overridesRes?.data || [])
+  const allMatches = withOverrides(matchesRes?.data || [], overridesIndex)
+
   // Filter matches involving this team, sorted most-recent first by start time.
-  const teamMatches = (matchesRes?.data || [])
+  const teamMatches = allMatches
     .filter(m => {
       const match = m.data
       return String(match.team_a_id) === String(teamId) || String(match.team_b_id) === String(teamId)
@@ -178,6 +191,7 @@ export default function TeamDetail() {
                  const isWin = isPast && winner === teamName
                  const isLoss = isPast && winner && winner !== teamName
                  const isTie = isPast && !isWin && !isLoss
+                 const isOverride = !!m._override
 
                  const cardBorder =
                    isWin  ? 'border-primary/40 bg-primary/5' :
@@ -201,10 +215,12 @@ export default function TeamDetail() {
                    'VS'
 
                  const cornerLabel =
-                   isWin  ? { text: 'Winner', cls: 'bg-primary' } :
-                   isLoss ? { text: 'Loss', cls: 'bg-red-500' } :
-                   isTie  ? { text: 'Tie / NR', cls: 'bg-accent text-background' } :
-                   isLive ? { text: 'Live Now', cls: 'bg-red-500' } :
+                   isWin && isOverride ? { text: 'Awarded', cls: 'bg-primary' } :
+                   isWin              ? { text: 'Winner', cls: 'bg-primary' } :
+                   isLoss             ? { text: 'Loss', cls: 'bg-red-500' } :
+                   isTie  && isOverride ? { text: 'Decision', cls: 'bg-accent text-background' } :
+                   isTie              ? { text: 'Tie / NR', cls: 'bg-accent text-background' } :
+                   isLive             ? { text: 'Live Now', cls: 'bg-red-500' } :
                    null
 
                  return (
@@ -237,9 +253,11 @@ export default function TeamDetail() {
                        </div>
 
                        <div className="text-xs font-bold text-text-muted italic">
-                         {isPast ? (m.match_summary?.summary || m.win_by || m.match_result) :
-                          isLive ? 'In progress' :
-                          'Scheduled'}
+                         {isPast && isOverride
+                           ? `${winner ? `${winner} ` : ''}${m.win_by || 'Decision'} • ${m._override?.notes || 'Off-field ruling'}`
+                           : isPast ? (m.match_summary?.summary || m.win_by || m.match_result)
+                           : isLive ? 'In progress'
+                           : 'Scheduled'}
                        </div>
                     </div>
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black italic text-xs uppercase shadow-2xl border-4 ${badgeStyle}`}>

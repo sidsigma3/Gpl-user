@@ -2,8 +2,52 @@
 // Cricket convention: 2 pts for a win, 1 each for a tie or no-result, 0 for a loss.
 // NRR is computed using actual overs faced/bowled, except when a side is all-out
 // — then the full match overs are counted (standard ICC behaviour).
+//
+// Match-result overrides (from the match_result_overrides table) are applied
+// before standings calculation. They cover abandoned / forfeit / off-field
+// rulings that CricHeroes does not reflect in its scorecard.
 
 const LEAGUE_ROUND = 'League Matches'
+
+// Build a Map<match_id, override_row> for fast lookup.
+export function indexOverrides(overrides) {
+  const map = new Map()
+  for (const ov of overrides || []) {
+    if (ov?.match_id != null) map.set(String(ov.match_id), ov)
+  }
+  return map
+}
+
+// Returns a copy of the match's data field with override fields applied. The
+// underlying scorecard fields (innings runs, overs played, etc) are kept as-is
+// so partial scores stay visible. Only the result is rewritten.
+export function applyOverrideToMatchData(matchData, override) {
+  if (!matchData || !override) return matchData
+  const isWin = override.result_type === 'win'
+  const isTie = override.result_type === 'tie'
+  return {
+    ...matchData,
+    status: 'past',
+    match_result: isWin ? 'Resulted' : isTie ? 'Tied' : 'No Result',
+    winning_team: isWin ? (override.winning_team_name || '') : '',
+    win_by: override.win_by || matchData.win_by || '',
+    _override: {
+      type: override.result_type,
+      notes: override.notes || '',
+    },
+  }
+}
+
+// Convenience: take the raw matches array (each with .id and .data) plus
+// indexed overrides and return a new array with overrides applied.
+export function withOverrides(matches, overridesIndex) {
+  if (!overridesIndex || overridesIndex.size === 0) return matches
+  return matches.map(m => {
+    const ov = overridesIndex.get(String(m.id ?? m.data?.match_id))
+    if (!ov) return m
+    return { ...m, data: applyOverrideToMatchData(m.data, ov) }
+  })
+}
 
 function oversToDecimal(oversStr) {
   if (oversStr === null || oversStr === undefined) return 0

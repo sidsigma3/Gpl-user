@@ -61,4 +61,9 @@ export const getStats = async (tournamentId) => {
   return response.data;
 };
 
+export const getMatchOverrides = async (tournamentId) => {
+  const response = await client.get('/match-overrides', { params: { tournamentId } });
+  return response.data;
+};
+
 export default client;

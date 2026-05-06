@@ -1,10 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
-import { getMatches, getTeams } from '../api/client'
+import { getMatches, getTeams, getMatchOverrides } from '../api/client'
 import { Trophy } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { useSeason } from '../context/SeasonContext'
-import { buildLeagueStandings, formatNRR, LEAGUE_ROUND_NAME } from '../lib/leagueStandings'
+import {
+  buildLeagueStandings,
+  formatNRR,
+  LEAGUE_ROUND_NAME,
+  indexOverrides,
+  withOverrides,
+} from '../lib/leagueStandings'
 
 export default function Standings() {
   const navigate = useNavigate()
@@ -23,8 +29,16 @@ export default function Standings() {
     enabled: !!activeSeason,
   })
 
-  const matches = matchesRes?.data || []
+  const { data: overridesRes } = useQuery({
+    queryKey: ['match-overrides', activeSeason?.id],
+    queryFn: () => getMatchOverrides(activeSeason?.id),
+    enabled: !!activeSeason,
+  })
+
+  const rawMatches = matchesRes?.data || []
   const teams = teamsRes?.data || []
+  const overridesIndex = indexOverrides(overridesRes?.data || [])
+  const matches = withOverrides(rawMatches, overridesIndex)
   const standings = buildLeagueStandings(teams, matches)
   const leagueMatchCount = matches.filter(
     m => m.data?.tournament_round_name === LEAGUE_ROUND_NAME && m.data?.status === 'past',
