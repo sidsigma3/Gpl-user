@@ -1,15 +1,11 @@
 import { Trophy, Clock, Bell, Share2, ArrowRight, Image as ImageIcon } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { getMatches, getLeaderboard, getTeams } from '../api/client'
+import { getMatches, getTeams } from '../api/client'
 import { Link, useNavigate } from 'react-router-dom'
-
-const announcements = [
-  { id: 1, title: 'Tournament Semi-Finals Schedule Out!', time: '2h ago' },
-  { id: 2, title: 'Player Registration deadline extended to Friday.', time: '1d ago' },
-]
 
 import { useSeason } from '../context/SeasonContext'
 import PwaPrompt from '../components/PwaPrompt'
+import { buildLeagueStandings, formatNRR } from '../lib/leagueStandings'
 
 
 export default function Home() {
@@ -23,32 +19,19 @@ export default function Home() {
     refetchInterval: 60_000,
   })
 
-  const { data: leadRes, isLoading: leadLoading } = useQuery({
-    queryKey: ['leaderboard', activeSeason?.id],
-    queryFn: () => getLeaderboard(activeSeason?.id),
-    enabled: !!activeSeason
-  })
-
-  const { data: teamRes } = useQuery({
+  const { data: teamRes, isLoading: teamsLoading } = useQuery({
     queryKey: ['teams', activeSeason?.id],
     queryFn: () => getTeams(activeSeason?.id),
     enabled: !!activeSeason
   })
 
   const matches = matchRes?.data || []
-  const leaderboardRaw = leadRes?.data || []
   const teams = teamRes?.data || []
-  
-  // Logic: Use player leaderboard if available, otherwise fallback to team standings for the sidebar
-  const leaderboard = leaderboardRaw.length > 0 
-    ? leaderboardRaw 
-    : teams.map(t => ({
-        player_id: t.id,
-        player_name: t.data.team_name,
-        team_name: 'Participating Team',
-        logo: t.data.logo || t.data.team_logo,
-        points: 0
-      }))
+
+  // League standings — top 5 for the home sidebar.
+  const standings = buildLeagueStandings(teams, matches)
+  const topStandings = standings.slice(0, 5)
+  const standingsLoading = teamsLoading || matchesLoading
 
   // Calculate aggregate stats from match data (more reliable than leaderboard)
   const stats = matches.reduce((acc, m) => {
@@ -197,66 +180,56 @@ export default function Home() {
 
         {/* Sidebar */}
         <div className="space-y-8">
-          {/* Top Performers */}
+          {/* League Standings */}
           <div className="space-y-4">
             <h3 className="text-lg font-black italic uppercase tracking-wider flex items-center gap-2 text-accent">
-              <Trophy size={20} /> Leaderboard
+              <Trophy size={20} /> League Standings
             </h3>
             <div className="card p-2 bg-surface/40 backdrop-blur-sm border-white/5">
-              {leadLoading ? (
+              {standingsLoading ? (
                 <div className="space-y-2 p-4">
                   {[1,2,3].map(i => <div key={i} className="h-12 bg-white/5 rounded-lg animate-pulse" />)}
                 </div>
-              ) : leaderboard.length > 0 ? (
+              ) : topStandings.length > 0 ? (
                 <div className="divide-y divide-white/5">
-                  {leaderboard.slice(0, 5).map((player, i) => {
-                    const photo = player.profile_photo || player.logo
-                    return (
-                    <Link 
-                      key={player.player_id || player.team_id} 
-                      to={`/teams/${player.team_id || player.player_id}`}
+                  {topStandings.map((row, i) => (
+                    <Link
+                      key={row.team_id}
+                      to={`/teams/${row.team_id}`}
                       className="flex items-center justify-between p-4 hover:bg-primary/10 transition-all group block"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                           <div className="w-12 h-12 rounded-xl bg-gray-900 overflow-hidden border border-white/10 shadow-lg group-hover:border-primary/50 transition-all">
-                             {photo ? (
-                               <img 
-                                 src={photo.startsWith('http') ? photo : `https://media.cricheroes.in/player_profile/${photo}`} 
-                                 alt="" 
-                                 className="w-full h-full object-cover" 
-                               />
-                             ) : (
-                               <div className="w-full h-full flex items-center justify-center bg-primary/5">
-                                 <Trophy className="text-primary/20" size={24} />
-                               </div>
-                             )}
-                           </div>
-                           <div className="absolute -top-1 -left-1 w-6 h-6 bg-primary text-white text-[10px] font-black rounded-lg flex items-center justify-center border-2 border-surface shadow-lg">{i+1}</div>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative shrink-0">
+                          <div className="w-12 h-12 rounded-xl bg-gray-900 overflow-hidden border border-white/10 shadow-lg group-hover:border-primary/50 transition-all flex items-center justify-center">
+                            {row.logo ? (
+                              <img src={row.logo} alt="" className="w-full h-full object-contain" />
+                            ) : (
+                              <Trophy className="text-primary/20" size={24} />
+                            )}
+                          </div>
+                          <div className="absolute -top-1 -left-1 w-6 h-6 bg-primary text-white text-[10px] font-black rounded-lg flex items-center justify-center border-2 border-surface shadow-lg">{i+1}</div>
                         </div>
-                        <div>
-                          <div className="font-black text-sm text-text-primary group-hover:text-primary transition-colors uppercase tracking-tight">{player.player_name}</div>
-                          <div className="text-[10px] text-accent uppercase font-black tracking-widest opacity-70">
-                            {player.team_name}
+                        <div className="min-w-0">
+                          <div className="font-black text-sm text-text-primary group-hover:text-primary transition-colors uppercase tracking-tight truncate">{row.team_name || '—'}</div>
+                          <div className="text-[10px] text-text-muted uppercase font-black tracking-widest">
+                            {row.played} P • {row.won}W {row.lost}L {row.tied ? `${row.tied}T` : ''}
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-primary font-black italic text-lg leading-none">
-                          {player.total_runs || player.points || 0}
-                        </div>
-                        <div className="text-[9px] text-text-muted font-bold uppercase tracking-tighter">
-                          {player.total_wickets ? `${player.total_wickets} Wkts` : 'Points'}
+                      <div className="text-right shrink-0 ml-3">
+                        <div className="text-accent font-black italic text-xl leading-none">{row.points}</div>
+                        <div className="text-[9px] text-text-muted font-bold uppercase tracking-tighter mt-0.5 tabular-nums">
+                          NRR {formatNRR(row.nrr)}
                         </div>
                       </div>
                     </Link>
-                  )})}
+                  ))}
                 </div>
               ) : (
-                <div className="p-8 text-center text-xs text-text-muted italic">No leaderboard data.</div>
+                <div className="p-8 text-center text-xs text-text-muted italic">No league data yet.</div>
               )}
               <Link to="/standings" className="block w-full p-3 text-center text-[10px] font-black uppercase text-accent hover:bg-accent/10 transition-colors border-t border-white/5">
-                Full Rankings
+                Full Standings
               </Link>
             </div>
           </div>

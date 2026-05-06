@@ -17,6 +17,29 @@ export default function Matches() {
 
   const matches = matchRes?.data || []
 
+  // Schedule order: live first, then upcoming sorted soonest-first, then past most-recent first.
+  const sortedMatches = (() => {
+    const live = []
+    const upcoming = []
+    const past = []
+    const other = []
+    for (const m of matches) {
+      const status = m.data?.status
+      if (status === 'live') live.push(m)
+      else if (status === 'upcoming') upcoming.push(m)
+      else if (status === 'past') past.push(m)
+      else other.push(m)
+    }
+    const byTimeAsc = (a, b) => new Date(a.data?.match_start_time || 0) - new Date(b.data?.match_start_time || 0)
+    const byTimeDesc = (a, b) => new Date(b.data?.match_start_time || 0) - new Date(a.data?.match_start_time || 0)
+    return [
+      ...live.sort(byTimeAsc),
+      ...upcoming.sort(byTimeAsc),
+      ...past.sort(byTimeDesc),
+      ...other,
+    ]
+  })()
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex items-center justify-between">
@@ -32,13 +55,14 @@ export default function Matches() {
         </div>
       ) : (
         <div className="grid gap-6">
-          {matches.map((item) => {
+          {sortedMatches.map((item) => {
             const m = item.data
+            const isLive = m.status === 'live'
             return (
-              <div 
-                key={item.id} 
+              <div
+                key={item.id}
                 onClick={() => navigate(`/matches/${item.id}`)}
-                className="card group hover:border-primary/40 transition-all bg-gradient-to-r from-surface to-background overflow-hidden block cursor-pointer"
+                className={`card group transition-all bg-gradient-to-r from-surface to-background overflow-hidden block cursor-pointer ${isLive ? 'border-red-500/40 hover:border-red-500/60' : 'hover:border-primary/40'}`}
               >
                 <div className="flex flex-col md:flex-row">
                   {/* Status Side */}
@@ -49,7 +73,12 @@ export default function Matches() {
                     <div className="text-xl font-black text-primary">
                        {new Date(m.match_start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                     </div>
-                    <div className="mt-4 px-3 py-1 rounded-full bg-surface border border-gray-700 text-[10px] font-bold uppercase text-accent">
+                    <div className={`mt-4 px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${
+                      isLive ? 'bg-red-500/15 border-red-500/40 text-red-400 inline-flex items-center gap-1.5' :
+                      m.status === 'past' ? 'bg-surface border-gray-700 text-text-muted' :
+                      'bg-surface border-gray-700 text-accent'
+                    }`}>
+                      {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
                       {m.status || 'Upcoming'}
                     </div>
                   </div>

@@ -4,78 +4,7 @@ import { Trophy } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { useSeason } from '../context/SeasonContext'
-
-const LEAGUE_ROUND = 'League Matches'
-
-// Standard cricket convention: 2 pts for a win, 1 each for tie / no-result, 0 for a loss.
-function buildLeagueStandings(teams, matches) {
-  const standingsByTeamId = new Map()
-
-  const ensureRow = (teamId, name, logo) => {
-    const key = String(teamId)
-    if (!standingsByTeamId.has(key)) {
-      standingsByTeamId.set(key, {
-        team_id: teamId,
-        team_name: name,
-        logo,
-        played: 0,
-        won: 0,
-        lost: 0,
-        tied: 0,
-        points: 0,
-      })
-    }
-    const row = standingsByTeamId.get(key)
-    if (!row.team_name && name) row.team_name = name
-    if (!row.logo && logo) row.logo = logo
-    return row
-  }
-
-  for (const t of teams) {
-    const teamId = t.id ?? t.data?.id ?? t.data?.team_id
-    const name = t.data?.team_name || t.data?.name
-    const logo = t.data?.logo || t.data?.team_logo
-    if (teamId) ensureRow(teamId, name, logo)
-  }
-
-  for (const m of matches) {
-    const match = m.data
-    if (!match) continue
-    if (match.tournament_round_name !== LEAGUE_ROUND) continue
-    if (match.status !== 'past') continue
-    if (!match.match_result) continue
-
-    const teamA = ensureRow(match.team_a_id, match.team_a, match.team_a_logo)
-    const teamB = ensureRow(match.team_b_id, match.team_b, match.team_b_logo)
-
-    teamA.played += 1
-    teamB.played += 1
-
-    const winner = (match.winning_team || '').trim()
-    const isTied = !winner || /tie|no\s*result|abandon/i.test(match.match_result)
-
-    if (isTied) {
-      teamA.tied += 1; teamA.points += 1
-      teamB.tied += 1; teamB.points += 1
-    } else if (winner === match.team_a) {
-      teamA.won += 1; teamA.points += 2
-      teamB.lost += 1
-    } else if (winner === match.team_b) {
-      teamB.won += 1; teamB.points += 2
-      teamA.lost += 1
-    } else {
-      // Winner string didn't match either team string — treat as tie defensively
-      teamA.tied += 1; teamA.points += 1
-      teamB.tied += 1; teamB.points += 1
-    }
-  }
-
-  return Array.from(standingsByTeamId.values()).sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points
-    if (b.won !== a.won) return b.won - a.won
-    return a.team_name?.localeCompare(b.team_name || '') || 0
-  })
-}
+import { buildLeagueStandings, formatNRR, LEAGUE_ROUND_NAME } from '../lib/leagueStandings'
 
 export default function Standings() {
   const navigate = useNavigate()
@@ -98,7 +27,7 @@ export default function Standings() {
   const teams = teamsRes?.data || []
   const standings = buildLeagueStandings(teams, matches)
   const leagueMatchCount = matches.filter(
-    m => m.data?.tournament_round_name === LEAGUE_ROUND && m.data?.status === 'past',
+    m => m.data?.tournament_round_name === LEAGUE_ROUND_NAME && m.data?.status === 'past',
   ).length
 
   return (
@@ -130,6 +59,7 @@ export default function Standings() {
                   <th className="p-4 md:p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">W</th>
                   <th className="p-4 md:p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">L</th>
                   <th className="p-4 md:p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">T/NR</th>
+                  <th className="p-4 md:p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">NRR</th>
                   <th className="p-4 md:p-6 text-xs font-black uppercase tracking-widest text-text-muted text-center">Pts</th>
                 </tr>
               </thead>
@@ -162,6 +92,11 @@ export default function Standings() {
                     <td className="p-4 md:p-6 text-center font-black text-primary">{team.won}</td>
                     <td className="p-4 md:p-6 text-center font-black text-text-muted">{team.lost}</td>
                     <td className="p-4 md:p-6 text-center font-black text-text-muted">{team.tied}</td>
+                    <td className="p-4 md:p-6 text-center font-black tabular-nums">
+                      <span className={team.nrr > 0 ? 'text-primary' : team.nrr < 0 ? 'text-red-400' : 'text-text-muted'}>
+                        {formatNRR(team.nrr)}
+                      </span>
+                    </td>
                     <td className="p-4 md:p-6 text-center">
                       <div className="font-black text-accent text-2xl">{team.points}</div>
                     </td>

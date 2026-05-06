@@ -15,12 +15,6 @@ export default function TeamDetail() {
     window.scrollTo(0, 0)
   }, [teamId])
 
-  const { data: leadRes, isLoading: leadLoading } = useQuery({
-    queryKey: ['leaderboard', activeSeason?.id],
-    queryFn: () => getLeaderboard(activeSeason?.id),
-    enabled: !!activeSeason
-  })
-
   const { data: teamsRes, isLoading: teamsLoading } = useQuery({
     queryKey: ['teams', activeSeason?.id],
     queryFn: () => getTeams(activeSeason?.id),
@@ -30,17 +24,32 @@ export default function TeamDetail() {
   const { data: matchesRes, isLoading: matchesLoading } = useQuery({
     queryKey: ['matches', activeSeason?.id],
     queryFn: () => getMatches(activeSeason?.id),
-    enabled: !!activeSeason
+    enabled: !!activeSeason,
+    refetchInterval: 60_000,
   })
 
   const teams = teamsRes?.data || []
   const team = teams.find(t => String(t.id) === String(teamId))
-  
-  // Robust match filtering
-  const teamMatches = matchesRes?.data?.filter(m => {
-    const match = m.data
-    return String(match.team_a_id) === String(teamId) || String(match.team_b_id) === String(teamId)
-  }) || []
+
+  // Filter matches involving this team, sorted most-recent first by start time.
+  const teamMatches = (matchesRes?.data || [])
+    .filter(m => {
+      const match = m.data
+      return String(match.team_a_id) === String(teamId) || String(match.team_b_id) === String(teamId)
+    })
+    .sort((a, b) => new Date(b.data?.match_start_time || 0) - new Date(a.data?.match_start_time || 0))
+
+  // Played = past matches only. Wins are derived by matching the winning_team
+  // string against this team's name (winning_team_id is sometimes blank in the
+  // match-list payload, so the string match is more reliable).
+  const teamName = team?.data?.team_name || team?.data?.name
+  const pastMatches = teamMatches.filter(m => m.data?.status === 'past' && m.data?.match_result)
+  const wins = pastMatches.filter(m => (m.data.winning_team || '').trim() === teamName).length
+  const losses = pastMatches.filter(m => {
+    const winner = (m.data.winning_team || '').trim()
+    return winner && winner !== teamName
+  }).length
+  const tiesOrNoResult = pastMatches.length - wins - losses
 
   if (teamsLoading || matchesLoading) {
     return (
@@ -106,16 +115,22 @@ export default function TeamDetail() {
                <h3 className="font-black italic uppercase text-sm text-accent flex items-center gap-2 border-b border-white/5 pb-2">
                   <TrendingUp size={16} /> Performance
                </h3>
-               <div className="grid grid-cols-2 gap-4">
+               <div className="grid grid-cols-2 gap-3">
                   <div className="p-4 bg-background rounded-xl border border-white/5 text-center shadow-inner">
                      <div className="text-[10px] font-bold text-text-muted uppercase mb-1">Played</div>
-                     <div className="text-2xl font-black">{teamMatches.length}</div>
+                     <div className="text-2xl font-black">{pastMatches.length}</div>
                   </div>
                   <div className="p-4 bg-background rounded-xl border border-white/5 text-center shadow-inner">
                      <div className="text-[10px] font-bold text-text-muted uppercase mb-1">Wins</div>
-                     <div className="text-2xl font-black text-primary">
-                        {teamMatches.filter(m => String(m.data.winning_team_id) === String(teamId)).length}
-                     </div>
+                     <div className="text-2xl font-black text-primary">{wins}</div>
+                  </div>
+                  <div className="p-4 bg-background rounded-xl border border-white/5 text-center shadow-inner">
+                     <div className="text-[10px] font-bold text-text-muted uppercase mb-1">Losses</div>
+                     <div className="text-2xl font-black text-red-400">{losses}</div>
+                  </div>
+                  <div className="p-4 bg-background rounded-xl border border-white/5 text-center shadow-inner">
+                     <div className="text-[10px] font-bold text-text-muted uppercase mb-1">Tie / NR</div>
+                     <div className="text-2xl font-black text-accent">{tiesOrNoResult}</div>
                   </div>
                </div>
             </div>
@@ -151,28 +166,64 @@ export default function TeamDetail() {
             </div>
             
             <div className="space-y-4">
-               {teamMatches.length > 0 ? [...teamMatches].reverse().map((match, idx) => {
+               {teamMatches.length > 0 ? teamMatches.map((match) => {
                  const m = match.data
-                 const isWin = String(m.winning_team_id) === String(teamId)
                  const isTeamA = String(m.team_a_id) === String(teamId)
                  const opponentName = isTeamA ? m.team_b : m.team_a
                  const opponentId = isTeamA ? m.team_b_id : m.team_a_id
-                 
+
+                 const winner = (m.winning_team || '').trim()
+                 const isPast = m.status === 'past' && !!m.match_result
+                 const isLive = m.status === 'live'
+                 const isWin = isPast && winner === teamName
+                 const isLoss = isPast && winner && winner !== teamName
+                 const isTie = isPast && !isWin && !isLoss
+
+                 const cardBorder =
+                   isWin  ? 'border-primary/40 bg-primary/5' :
+                   isLoss ? 'border-red-500/30 bg-red-500/5 opacity-90' :
+                   isTie  ? 'border-accent/30 bg-accent/5' :
+                   isLive ? 'border-red-500/40' :
+                   'border-dashed border-white/10 bg-surface/30'
+
+                 const badgeStyle =
+                   isWin  ? 'bg-primary text-white border-primary/20' :
+                   isLoss ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                   isTie  ? 'bg-accent/20 text-accent border-accent/30' :
+                   isLive ? 'bg-red-500 text-white border-red-500/30 animate-pulse' :
+                   'bg-gray-800 text-text-muted border-gray-700'
+
+                 const badgeLabel =
+                   isWin  ? 'W' :
+                   isLoss ? 'L' :
+                   isTie  ? 'T' :
+                   isLive ? 'LIVE' :
+                   'VS'
+
+                 const cornerLabel =
+                   isWin  ? { text: 'Winner', cls: 'bg-primary' } :
+                   isLoss ? { text: 'Loss', cls: 'bg-red-500' } :
+                   isTie  ? { text: 'Tie / NR', cls: 'bg-accent text-background' } :
+                   isLive ? { text: 'Live Now', cls: 'bg-red-500' } :
+                   null
+
                  return (
-                  <div 
-                    key={idx} 
+                  <div
+                    key={match.id}
                     onClick={() => navigate(`/matches/${match.id}`)}
-                    className="flex items-center justify-between p-6 card bg-surface hover:border-primary/40 transition-all group relative overflow-hidden cursor-pointer"
+                    className={`flex items-center justify-between p-6 card transition-all group relative overflow-hidden cursor-pointer ${cardBorder}`}
                   >
-                    {isWin && m.winning_team_id && <div className="absolute top-0 right-0 p-1 bg-primary text-white text-[8px] font-black uppercase tracking-tighter px-2 rounded-bl-lg shadow-lg">Winner</div>}
+                    {cornerLabel && (
+                      <div className={`absolute top-0 right-0 text-white text-[8px] font-black uppercase tracking-tighter px-2 py-1 rounded-bl-lg shadow-lg ${cornerLabel.cls}`}>
+                        {cornerLabel.text}
+                      </div>
+                    )}
                     <div className="space-y-1">
                        <div className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                         {m.match_date ? new Date(m.match_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 
-                          m.match_start_time ? new Date(m.match_start_time).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'TBD'}
+                         {m.match_start_time ? new Date(m.match_start_time).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'TBD'}
                        </div>
-                       
-                       {/* Opponent Link */}
-                       <div 
+
+                       <div
                          onClick={(e) => {
                            e.stopPropagation();
                            if (opponentId) navigate(`/teams/${opponentId}`);
@@ -186,18 +237,14 @@ export default function TeamDetail() {
                        </div>
 
                        <div className="text-xs font-bold text-text-muted italic">
-                         {m.match_result === 'upcoming' ? 'Scheduled' : (m.result_desc || m.match_result)}
+                         {isPast ? (m.match_summary?.summary || m.win_by || m.match_result) :
+                          isLive ? 'In progress' :
+                          'Scheduled'}
                        </div>
                     </div>
-                    {m.winning_team_id ? (
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black italic text-xs uppercase shadow-2xl border-4 ${isWin ? 'bg-primary text-white border-primary/20' : 'bg-gray-800 text-text-muted border-gray-700'}`}>
-                         {isWin ? 'W' : 'L'}
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center bg-accent/10 border-2 border-accent/20 text-accent font-black text-[10px] uppercase">
-                        VS
-                      </div>
-                    )}
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black italic text-xs uppercase shadow-2xl border-4 ${badgeStyle}`}>
+                       {badgeLabel}
+                    </div>
                   </div>
                  )
                }) : (
