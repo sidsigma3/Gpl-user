@@ -458,8 +458,82 @@ export default function MatchDetail() {
                     </div>
                   )
                 }
+
+                // "new_player" entries are CricHeroes' inline player cards that
+                // appear when a new batsman or bowler comes in. Different shape
+                // — they have data.type ('next_bowler' / 'next_batsman'),
+                // player_info, player_stat[], statements[] (HTML). Render as
+                // a player intro card rather than a ball.
+                if (entry.type === 'new_player') {
+                  const np = entry.data || {}
+                  const isBowler = np.type === 'next_bowler'
+                  const info = np.player_info || {}
+                  const stats = Array.isArray(np.player_stat) ? np.player_stat : []
+                  const stripHtml = (s) => String(s || '').replace(/<[^>]*>/g, '').trim()
+                  const cardCls = isBowler ? 'border-red-500/20 bg-red-500/5' : 'border-primary/20 bg-primary/5'
+                  const chipCls = isBowler ? 'bg-red-500/20 text-red-400' : 'bg-primary/20 text-primary'
+                  const headerCls = isBowler ? 'text-red-400' : 'text-primary'
+                  const valueCls = isBowler ? 'text-red-400' : 'text-primary'
+                  const visibleStats = stats.slice(0, 4)
+                  const gridCols = visibleStats.length === 1 ? 'grid-cols-1'
+                    : visibleStats.length === 2 ? 'grid-cols-2'
+                    : visibleStats.length === 3 ? 'grid-cols-3'
+                    : 'grid-cols-4'
+                  return (
+                    <div
+                      key={`np-${info.player_id || idx}-${idx}`}
+                      className={`card p-4 ${cardCls}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gray-900 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                          {info.profile_photo ? (
+                            <img src={info.profile_photo} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Users size={18} className="text-text-muted" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-[10px] font-black uppercase tracking-widest ${headerCls} flex items-center gap-2 flex-wrap`}>
+                            <span className={`px-2 py-0.5 rounded ${chipCls}`}>{np.header_text || (isBowler ? 'Next Bowler' : 'Next Batter')}</span>
+                            {info.bowling_type && <span className="text-text-muted normal-case tracking-normal text-[10px] truncate">{info.bowling_type}</span>}
+                            {info.batting_hand && <span className="text-text-muted normal-case tracking-normal text-[10px]">{info.batting_hand}</span>}
+                          </div>
+                          <div className="font-black uppercase text-base mt-1 truncate">{info.player_name || 'New Player'}</div>
+                          {info.city_name && (
+                            <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-0.5">{info.city_name}</div>
+                          )}
+                        </div>
+                      </div>
+                      {visibleStats.length > 0 && (
+                        <div className={`mt-3 pt-3 border-t border-white/5 grid ${gridCols} gap-2`}>
+                          {visibleStats.map((s, sIdx) => (
+                            <div key={sIdx} className="text-center">
+                              <div className={`font-black ${valueCls} tabular-nums`}>{s.value ?? '-'}</div>
+                              <div className="text-[9px] font-bold text-text-muted uppercase tracking-widest mt-0.5">{s.title}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {Array.isArray(np.statements) && np.statements.length > 0 && (
+                        <ul className="mt-3 pt-3 border-t border-white/5 space-y-1">
+                          {np.statements.slice(0, 3).map((line, sIdx) => {
+                            const txt = stripHtml(line)
+                            if (!txt) return null
+                            return (
+                              <li key={sIdx} className="text-xs text-text-primary">{txt}</li>
+                            )
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  )
+                }
+
                 const b = entry.data
                 if (!b) return null
+                // Skip entries that don't look like a regular ball — defensive
+                // against future CricHeroes types we haven't seen yet.
+                if (typeof b.commentary !== 'string') return null
                 const isWicket = b.is_out === 1
                 const isBoundary = b.is_boundry === 1
                 const isExtra = !!b.extra_type_code
