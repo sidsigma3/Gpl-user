@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Home, Trophy, BarChart3, Vote, Menu, Image as ImageIcon, Newspaper, X } from 'lucide-react'
+import { Home, Trophy, BarChart3, Vote, Menu, Image as ImageIcon, Newspaper, X, Flame } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -11,11 +11,12 @@ function cn(...inputs) {
 const mainTabs = [
   { name: 'Home', path: '/', icon: Home },
   { name: 'Matches', path: '/matches', icon: Trophy },
+  { name: 'Stats', path: '/stats', icon: Flame },
   { name: 'Rankings', path: '/standings', icon: BarChart3 },
-  { name: 'Vote', path: '/vote', icon: Vote },
 ]
 
 const moreTabs = [
+  { name: 'Vote', path: '/vote', icon: Vote },
   { name: 'Gallery', path: '/gallery', icon: ImageIcon },
   { name: 'News', path: '/news', icon: Newspaper },
 ]

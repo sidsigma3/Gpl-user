@@ -5,6 +5,7 @@ import SeasonSelector from './SeasonSelector'
 const tabs = [
   { name: 'Home', path: '/' },
   { name: 'Schedule', path: '/matches' },
+  { name: 'Stats', path: '/stats' },
   { name: 'Rankings', path: '/standings' },
   { name: 'Gallery', path: '/gallery' },
   { name: 'News', path: '/news' },
