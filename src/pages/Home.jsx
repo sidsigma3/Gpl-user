@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { useSeason } from '../context/SeasonContext'
 import PwaPrompt from '../components/PwaPrompt'
-import { buildLeagueStandings, formatNRR, indexOverrides, withOverrides } from '../lib/leagueStandings'
+import { buildLeagueStandings, formatNRR, indexOverrides, withOverrides, isMatchActuallyLive } from '../lib/leagueStandings'
 
 
 export default function Home() {
@@ -66,16 +66,18 @@ export default function Home() {
     return acc
   }, { runs: 0, wickets: 0 })
 
-  // Featured match: prefer currently-live, else most-recent past, else first available
-  const liveRow = matches.find(m => m.data?.status === 'live')
+  // Featured match: prefer truly-live (started recently), else most-recent past,
+  // else any other match. Stale "live" matches (CricHeroes never marked them
+  // ended) are treated as past for display purposes.
+  const liveRow = matches.find(m => isMatchActuallyLive(m.data))
   const lastPastRow = liveRow
     ? null
     : [...matches]
-        .filter(m => m.data?.status === 'past')
+        .filter(m => m.data?.status === 'past' || (m.data?.status === 'live' && !isMatchActuallyLive(m.data)))
         .sort((a, b) => new Date(b.data?.match_start_time || 0) - new Date(a.data?.match_start_time || 0))[0]
   const featuredRow = liveRow || lastPastRow || matches[0]
   const latestMatch = featuredRow?.data
-  const isLive = latestMatch?.status === 'live'
+  const isLive = isMatchActuallyLive(latestMatch)
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">

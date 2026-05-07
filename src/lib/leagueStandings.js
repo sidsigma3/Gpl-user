@@ -172,3 +172,25 @@ export function formatNRR(nrr) {
 }
 
 export const LEAGUE_ROUND_NAME = LEAGUE_ROUND
+
+// CricHeroes sometimes leaves matches stuck on status="live" forever when a
+// scorer abandons mid-game. We treat anything live-but-old as "actually done".
+// Tennis-ball T10/T20 typically finishes well inside 4 hours; 6h gives buffer.
+const STALE_LIVE_AFTER_MS = 6 * 60 * 60 * 1000
+
+export function isMatchActuallyLive(matchData) {
+  if (matchData?.status !== 'live') return false
+  const start = matchData?.match_start_time
+  if (!start) return true
+  const startMs = new Date(start).getTime()
+  if (!Number.isFinite(startMs)) return true
+  return (Date.now() - startMs) < STALE_LIVE_AFTER_MS
+}
+
+// Returns "live" / "past" / "upcoming" / "stale-live" — the latter for matches
+// CricHeroes still flags as live but which have clearly ended.
+export function effectiveMatchStatus(matchData) {
+  const s = matchData?.status
+  if (s === 'live' && !isMatchActuallyLive(matchData)) return 'stale-live'
+  return s || 'upcoming'
+}

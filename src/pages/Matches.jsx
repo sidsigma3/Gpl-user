@@ -4,7 +4,7 @@ import { Trophy, MapPin, Share2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { useSeason } from '../context/SeasonContext'
-import { indexOverrides, withOverrides } from '../lib/leagueStandings'
+import { indexOverrides, withOverrides, isMatchActuallyLive } from '../lib/leagueStandings'
 
 export default function Matches() {
   const navigate = useNavigate()
@@ -25,7 +25,8 @@ export default function Matches() {
   const overridesIndex = indexOverrides(overridesRes?.data || [])
   const matches = withOverrides(matchRes?.data || [], overridesIndex)
 
-  // Schedule order: live first, then upcoming sorted soonest-first, then past most-recent first.
+  // Schedule order: truly-live first, then upcoming soonest-first, then past
+  // (and stale-live matches treated as past) most-recent first.
   const sortedMatches = (() => {
     const live = []
     const upcoming = []
@@ -33,9 +34,9 @@ export default function Matches() {
     const other = []
     for (const m of matches) {
       const status = m.data?.status
-      if (status === 'live') live.push(m)
+      if (isMatchActuallyLive(m.data)) live.push(m)
       else if (status === 'upcoming') upcoming.push(m)
-      else if (status === 'past') past.push(m)
+      else if (status === 'past' || status === 'live') past.push(m) // stale "live" → past bucket
       else other.push(m)
     }
     const byTimeAsc = (a, b) => new Date(a.data?.match_start_time || 0) - new Date(b.data?.match_start_time || 0)
@@ -65,7 +66,8 @@ export default function Matches() {
         <div className="grid gap-6">
           {sortedMatches.map((item) => {
             const m = item.data
-            const isLive = m.status === 'live'
+            const isLive = isMatchActuallyLive(m)
+            const isStaleLive = m.status === 'live' && !isLive
             const isOverride = !!m._override
             return (
               <div
@@ -85,11 +87,12 @@ export default function Matches() {
                     <div className={`mt-4 px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${
                       isOverride ? 'bg-accent/15 border-accent/40 text-accent' :
                       isLive ? 'bg-red-500/15 border-red-500/40 text-red-400 inline-flex items-center gap-1.5' :
+                      isStaleLive ? 'bg-surface border-gray-700 text-text-muted' :
                       m.status === 'past' ? 'bg-surface border-gray-700 text-text-muted' :
                       'bg-surface border-gray-700 text-accent'
                     }`}>
                       {isLive && !isOverride && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
-                      {isOverride ? 'Awarded' : (m.status || 'Upcoming')}
+                      {isOverride ? 'Awarded' : isStaleLive ? 'Ended' : (m.status || 'Upcoming')}
                     </div>
                   </div>
 
@@ -147,6 +150,8 @@ export default function Matches() {
                           <span className="text-accent font-bold uppercase tracking-tight">{m.match_summary?.summary}</span>
                         ) : isLive ? (
                           'Match in progress'
+                        ) : isStaleLive ? (
+                          <span className="text-text-muted font-bold uppercase tracking-tight">Match ended — result not posted</span>
                         ) : (
                           'Match has not started yet'
                         )}

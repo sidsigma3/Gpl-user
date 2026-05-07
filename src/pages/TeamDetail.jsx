@@ -5,7 +5,7 @@ import { ArrowLeft, Trophy, Users, Calendar, Target, TrendingUp, Info, ArrowRigh
 import { useEffect } from 'react'
 
 import { useSeason } from '../context/SeasonContext'
-import { indexOverrides, withOverrides } from '../lib/leagueStandings'
+import { indexOverrides, withOverrides, isMatchActuallyLive } from '../lib/leagueStandings'
 
 export default function TeamDetail() {
   const navigate = useNavigate()
@@ -186,8 +186,9 @@ export default function TeamDetail() {
                  const opponentId = isTeamA ? m.team_b_id : m.team_a_id
 
                  const winner = (m.winning_team || '').trim()
+                 const isLive = isMatchActuallyLive(m)
+                 const isStaleLive = m.status === 'live' && !isLive
                  const isPast = m.status === 'past' && !!m.match_result
-                 const isLive = m.status === 'live'
                  const isWin = isPast && winner === teamName
                  const isLoss = isPast && winner && winner !== teamName
                  const isTie = isPast && !isWin && !isLoss
@@ -198,6 +199,7 @@ export default function TeamDetail() {
                    isLoss ? 'border-red-500/30 bg-red-500/5 opacity-90' :
                    isTie  ? 'border-accent/30 bg-accent/5' :
                    isLive ? 'border-red-500/40' :
+                   isStaleLive ? 'border-white/10 bg-surface/30' :
                    'border-dashed border-white/10 bg-surface/30'
 
                  const badgeStyle =
@@ -205,6 +207,7 @@ export default function TeamDetail() {
                    isLoss ? 'bg-red-500/20 text-red-400 border-red-500/30' :
                    isTie  ? 'bg-accent/20 text-accent border-accent/30' :
                    isLive ? 'bg-red-500 text-white border-red-500/30 animate-pulse' :
+                   isStaleLive ? 'bg-gray-700 text-text-muted border-gray-700' :
                    'bg-gray-800 text-text-muted border-gray-700'
 
                  const badgeLabel =
@@ -212,6 +215,7 @@ export default function TeamDetail() {
                    isLoss ? 'L' :
                    isTie  ? 'T' :
                    isLive ? 'LIVE' :
+                   isStaleLive ? 'END' :
                    'VS'
 
                  const cornerLabel =
@@ -221,6 +225,7 @@ export default function TeamDetail() {
                    isTie  && isOverride ? { text: 'Decision', cls: 'bg-accent text-background' } :
                    isTie              ? { text: 'Tie / NR', cls: 'bg-accent text-background' } :
                    isLive             ? { text: 'Live Now', cls: 'bg-red-500' } :
+                   isStaleLive        ? { text: 'Ended', cls: 'bg-gray-700' } :
                    null
 
                  return (
@@ -257,6 +262,7 @@ export default function TeamDetail() {
                            ? `${winner ? `${winner} ` : ''}${m.win_by || 'Decision'} • ${m._override?.notes || 'Off-field ruling'}`
                            : isPast ? (m.match_summary?.summary || m.win_by || m.match_result)
                            : isLive ? 'In progress'
+                           : isStaleLive ? 'Ended — result not posted'
                            : 'Scheduled'}
                        </div>
                     </div>
